@@ -1,99 +1,129 @@
-import sys
-
-sys.path.insert(1, '../../../')
-
-from generate_dataset import *
 import pickle as pkl
+from datetime import datetime, timedelta
+from enum import Enum
+
+import joblib
+import numpy as np
+import pandas as pd
+
+from libV2 import minMaxScale, standardScale, split_sequence
 
 
-def generate_ds(seq_len_x, seq_len_y_par, data_path, base_path, columns, oheFiles, start_date=None, end_date=None):
-    # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
-    # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
+class ScalerTypes(Enum):
+    MINMAX = 'minmax'
+    STD = 'standard'
 
-    # merge dataset
-    df = merge_datasets(orders_path=data_path + 'annual_timeshifts.csv', orders_columns=columns,
-                        access_path=data_path + 'annual_access_daily_full.csv',
-                        weather_path=None, partite_path=data_path + 'partite.csv',
-                        events_path=data_path + 'eventi.csv')
-    if start_date:
-        df = df[df['date'] >= start_date]
 
-    if end_date:
-        df = df[df['date'] <= end_date]
+class DatasetGenerator:
+    def __init__(self, columns, seq_len_x, seq_len_y, data_path, encoders, scaler_path):
+        self.columns = columns
+        self.seq_len_x = seq_len_x
+        self.seq_len_y = seq_len_y
+        self.data_path = data_path
+        self.encoders = encoders
+        self.scaler_path = scaler_path
 
-    # creazione info frame
-    info_frame = df.copy()
+    def __scale_df(self, frame, columns_to_scale=None, scaler_names=None,
+                   scalerType: ScalerTypes = ScalerTypes.MINMAX):
+        if columns_to_scale is None:
+            print('No columns to scale')
+            return
+        frame = frame.copy()
+        if scaler_names:
+            # ho già gli scalers, li carico e li utilizzo
+            scalers = []
+            for scaler_name in scaler_names:
+                scalers.append(joblib.load(scaler_name))
+            for idx, cts in enumerate(columns_to_scale):
+                frame[cts] = scalers[idx].transform(
+                    frame[cts].values.reshape(-1, 1).astype('float64'))
+        else:
+            # creo gli scalers in base al tipo e li salvo
+            for cts in columns_to_scale:
+                if scalerType == ScalerTypes.MINMAX:
+                    tmp_scaler = minMaxScale(frame, cts)
+                else:
+                    tmp_scaler = standardScale(frame, cts)
+                # salvo lo scaler
+                joblib.dump(tmp_scaler, self.scaler_path + cts + '_scaler.save')
+        return frame
 
-    print(info_frame)
+    def load_XY(self):
+        pass
 
-    # processo frame ed info_frame
-    frame = process_ds(df, refill_zero=False, scaler_temp=None, addWeather = False, oheFiles=oheFiles)
-    frame =frame.fillna(0)
-    info_frame = preprocess_ds(info_frame, refill_zero=False, dropColumns=False)
+    def __process_ds(self, frame, date_prediction_start=None, days_delta=7):
+        frame = frame.copy()
 
-    print(frame.columns)
-    print(info_frame.columns)
+        if date_prediction_start is not None:
+            date_prediction_start = datetime.strptime(
+                date_prediction_start, "%Y-%m-%d")
+            date_ts_start = date_prediction_start - timedelta(days=days_delta)
+            frame = frame[frame['date'] >= date_ts_start.strftime("%Y-%m-%d")]
+            frame.reset_index(inplace=True, drop=True)
+        return frame
 
-    # scalo le features e rimuovo quelle inutili
-    columns_to_scale = ['orders_completed', 'subtotal', 'shipping_cost', 'coupons_count', 'coupons_value',
-                        'bookings_taken', 'bookings_auth', 'partners_with_orders', 'count']
-    frame = scale_df(frame, columns_to_scale=columns_to_scale, scaler_path='../scalers/',scalerType='standard')
-    seq_len = seq_len_x
-    seq_len_y = seq_len_y_par  # 11 giorni
-    frame_drop = frame.drop(['date', 'timeshift', 'city', 'month', 'is_cap','is_coupon'],
-                            axis=1)
-    info_frame_drop = info_frame.drop(['date', 'timeshift', 'city', 'orders_completed', 'subtotal',
-                                       'shipping_cost', 'coupons_count', 'coupons_value', 'bookings_taken',
-                                       'bookings_auth', 'partners_with_orders', 'count', 'month', 'is_cap','is_coupon'], axis=1)
+    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None, end_date=None,
+                    save=True):
+        # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
+        # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
-    print(frame_drop.columns)
-    print(info_frame_drop.columns)
-    # creo le sequenze per la rete
-    X, _ = split_sequence(frame_drop.values.astype('float64'), seq_len, seq_len_y)
+        # merge dataset
+        df = pd.read_csv(self.data_path)
+        df.columns = self.columns
 
-    X1, _ = split_sequence(frame_drop.values.astype('float64'), seq_len + seq_len_y, 0)
-    Y = np.empty((X1.shape[0], seq_len, seq_len_y))
+        if start_date:
+            df = df[df['date'] >= start_date]
 
-    for step_ahead in range(1, seq_len_y + 1):
-        Y[:, :, step_ahead - 1] = X1[:, step_ahead:step_ahead + seq_len, 0]
+        if end_date:
+            df = df[df['date'] <= end_date]
 
-    X_info, _ = split_sequence(info_frame_drop.values.astype('float64'), seq_len + seq_len_y, 0)
-    X_i = np.empty((X_info.shape[0], seq_len, seq_len_y, X_info.shape[2]))
-    for step_ahead in range(1, seq_len_y + 1):
-        X_i[:, :, step_ahead - 1] = X_info[:, step_ahead:step_ahead + seq_len, :]
+        df = df.fillna(0)
 
-    print(X.shape, X_i.shape, Y.shape)
+        # scalo le features e rimuovo quelle inutili
 
-    # pagino il dataset e lo salvo nell'apposita cartella
-    filenames = []
+        frame = self.__scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.STD)
+        frame_drop = frame.drop(columns_to_drop, axis=1)
 
-    for idx, x in enumerate(X):
-        fnx = f'X_data_base_11d_{idx}'
-        fnxi = f'X_i_data_base_11d_{idx}'
-        fny = f'Y_data_base_11d_{idx}'
-        filenames.append([fnx, fnxi, fny])
-        with open(base_path + fnx, 'wb') as output:
-            pkl.dump(x, output)
-        with open(base_path + fnxi, 'wb') as output:
-            pkl.dump(X_i[idx], output)
-        with open(base_path + fny, 'wb') as output:
-            pkl.dump(Y[idx], output)
-    np.save(f'{base_path}/filenames_base_11d.npy', filenames)
+        print(frame_drop.columns)
+        # creo le sequenze per la rete
+        X, Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+        ctfs = [list(frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
+        Y = Y[:, :, ctfs]
+        # pagino il dataset e lo salvo nell'apposita cartella
+        filenames = []
+        if not save:
+            return X, Y
+
+        for idx, x in enumerate(X):
+            fnx = f'X_{idx}'
+            fny = f'Y_{idx}'
+            filenames.append([fnx, fny])
+            with open(base_path + fnx, 'wb') as output:
+                pkl.dump(x, output)
+            with open(base_path + fny, 'wb') as output:
+                pkl.dump(Y[idx], output)
+
+        np.save(f'{base_path}/filenames.npy', filenames)
 
 
 if __name__ == '__main__':
-    data_path = '../../../data/'
-    base_path = 'ds_paginato/'
-    seq_len_x = 120
-    seq_len_y_par = 44
-    columns = ['date', 'timeshift', 'city',
-               'orders_completed', 'subtotal', 'shipping_cost', 'coupons_count',
-               'coupons_value', 'bookings_taken', 'bookings_auth',
-               'partners_with_orders']
-    oheFiles = {
-        'month': '../encoders/oheMonth',
-        'year': '../encoders/oheYears',
-        'ts': '../encoders/oheTs',
-        'micro': '../encoders/oheMicro'
-    }
-    generate_ds(seq_len_x, seq_len_y_par, data_path, base_path, columns, oheFiles, start_date=None, end_date=None)
+    data_path = 'data/olb_msa_full.csv'
+    base_path = 'dataset/'
+    encoders = 'encoders/'
+    scalers = 'scalers/'
+    seq_len_x = 7
+    seq_len_y = 1
+
+    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
+               'background seismicity']
+
+    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
+                                         encoders=encoders, scaler_path=scalers)
+    X, Y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
+                                         columns_to_drop=['date', 'displacement (cm)',
+                                                          'background seismicity'],
+                                         columns_to_forecast=['Rn_olb'],
+                                         save=False)
+    print(X.shape, Y.shape)
