@@ -4,7 +4,7 @@ import keras
 
 
 class CustomGenerator(keras.utils.Sequence):
-    def __init__(self, filenames, batch_size, base_path='../ds_paginato/'):
+    def __init__(self, filenames, batch_size, base_path='dataset/'):
         self.X_filenames = filenames[:, 0]
         self.y_filenames = filenames[:, 1]
         self.batch_size = batch_size

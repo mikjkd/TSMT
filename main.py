@@ -33,5 +33,5 @@ if __name__ == '__main__':
                                   columns_to_forecast=['Rn_olb'])
 
     # Forecast Model
-    lstm_regressor = LSTMRegressor(model_name='lstm_model', data_path='', seq_len=seq_length, num_cols=num_cols)
+    lstm_regressor = LSTMRegressor(model_name='lstm_model', data_path='dataset/', seq_len=seq_length, num_cols=num_cols)
     lstm_regressor.run()

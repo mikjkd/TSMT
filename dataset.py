@@ -81,7 +81,7 @@ class DatasetGenerator:
 
         # scalo le features e rimuovo quelle inutili
 
-        frame = self.__scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.STD)
+        frame = self.__scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
         print(frame_drop.columns)
@@ -120,10 +120,9 @@ if __name__ == '__main__':
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    X, Y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_drop=['date', 'displacement (cm)',
-                                                          'background seismicity'],
-                                         columns_to_forecast=['Rn_olb'],
-                                         save=False)
-    print(X.shape, Y.shape)
+    dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+                                  columns_to_drop=['date', 'displacement (cm)',
+                                                   'background seismicity', 'T_msa',
+                                                   'Ru_msa', 'P_msa', 'Rn_msa'],
+                                  columns_to_forecast=['Rn_olb'],
+                                  save=True)
