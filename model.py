@@ -2,6 +2,7 @@ from typing import Optional
 
 import joblib
 import keras
+import matplotlib.pyplot as plt
 import numpy as np
 from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -9,9 +10,8 @@ from keras.callbacks import History
 from keras.layers import LSTM, Dense
 from keras.losses import mean_squared_error, mean_absolute_error
 from keras.optimizers import Adam
-from keras.saving.save import load_model
+from keras.src.saving import load_model
 from keras.utils import plot_model
-from matplotlib import pyplot as plt
 
 from data_generator import CustomGenerator
 
@@ -21,7 +21,7 @@ class RegressorModel:
         self.data_path: str = data_path
         self.model: Optional[keras.Model] = None
         self.model_name: str = model_name
-        self.batch_size: int = 32
+        self.batch_size: int = 64
         self.history: Optional[History] = None
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
@@ -44,18 +44,18 @@ class RegressorModel:
         test_filenames = data[int(len(data) * test_p):-1]
         return train_filenames, test_filenames
 
-    def generate_data(self, train_filenames, test_filenames, batch_size=32):
+    def generate_data(self, train_filenames, test_filenames, batch_size=64):
         # Implementazione della preparazione dei dati
         self.batch_size = batch_size
         train_generator = CustomGenerator(train_filenames, batch_size)
-        test_generator = CustomGenerator(test_filenames, batch_size)
+        test_generator = CustomGenerator(test_filenames, batch_size, on_end_shuffle=True)
         return train_generator, test_generator
 
     def train_model(self, len_train, len_test, train_test_generator, config=None) -> History:
         if config is None:
             config = {
                 'optimizer': Adam(),
-                'loss': "mean_squared_error",
+                'loss': "mse",
                 'epochs': 64,
                 'multiprocessing': False
             }
@@ -74,8 +74,8 @@ class RegressorModel:
 
         self.model.summary()
 
-        es = EarlyStopping(monitor='val_mean_squared_error', mode='min', verbose=1, patience=60)
-        mc = ModelCheckpoint(f'saved_model/{self.model_name}.h5', monitor='val_mean_squared_error', mode='min',
+        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=60)
+        mc = ModelCheckpoint(f'saved_model/{self.model_name}.keras', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
 
@@ -84,14 +84,14 @@ class RegressorModel:
         epochs = config['epochs']
         is_multiprocessing = config['multiprocessing']
         workers = 0 if not is_multiprocessing else config['workers']
-        self.model.compile(loss=loss, optimizer=optimizer, metrics=['mean_squared_error'])
+        self.model.compile(loss=loss, optimizer=optimizer, metrics=['mse'])
 
         history = self.model.fit(x=train_generator,
                                  steps_per_epoch=int(len_train // self.batch_size),
                                  validation_data=test_generator,
                                  validation_steps=int(len_test // self.batch_size),
                                  epochs=epochs,
-                                 callbacks=[mc, es], use_multiprocessing=is_multiprocessing, workers=workers
+                                 callbacks=[mc, es]
                                  )
 
         return history
@@ -125,12 +125,33 @@ class RegressorModel:
         pass
 
     def run(self):
-        pass
+        data = self.load_data(shuffle=False)
+        # divido i dati e creo i generators
+        train_filenames, test_filenames = self.split_data(data)
+        train_generator, test_generator = self.generate_data(train_filenames, test_filenames)
+
+        self.history = self.train_model(len(train_filenames), len(test_filenames), [train_generator, test_generator])
+
+        plt.plot(self.history.history['loss'])
+        plt.plot(self.history.history['val_loss'])
+        plt.legend()
+        plt.show()
 
 
 class LinearRegressor(RegressorModel):
+    def __init__(self, model_name, data_path):
+        super().__init__(model_name, data_path)
+
     def generate_model(self, input_shape, output_shape):
-        pass
+        model = keras.Sequential()
+        # Aggiungi un layer Flatten per linearizzare il tensore
+        model.add(keras.layers.Flatten(input_shape=input_shape))
+        # Aggiungi il layer Dense successivo
+        model.add(keras.layers.Dense(units=output_shape))  # specifica il numero di unità del layer Dense
+        return model
+
+
+# carico dati
 
 
 class LSTMRegressor(RegressorModel):
@@ -139,24 +160,10 @@ class LSTMRegressor(RegressorModel):
 
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=8, return_sequences=False)(input1)
+        l1 = LSTM(units=128, return_sequences=False)(input1)
         out = Dense(output_shape)(l1)
         model = Model(inputs=input1, outputs=out)
         return model
-
-    def run(self):
-        # carico dati
-        data = self.load_data(shuffle=True)
-        # divido i dati e creo i generators
-        train_filenames, test_filenames = self.split_data(data)
-        train_generator, test_generator = self.generate_data(train_filenames, test_filenames)
-
-        self.history = self.train_model(len(train_filenames), len(test_filenames), [train_generator, test_generator])
-
-        plt.plot(self.history.history['loss'], label='last_time_step_mse')
-        plt.plot(self.history.history['val_loss'], label='val_last_time_step_mse')
-        plt.legend()
-        plt.show()
 
 
 """
@@ -187,17 +194,17 @@ def scale_preds(preds, scaler_path):
 
 
 if __name__ == '__main__':
-    lstm_regressor = LSTMRegressor(model_name='lstm_model', data_path='dataset/filenames.npy')
+    regressor = LinearRegressor(model_name='linear_model', data_path='dataset/filenames.npy')
 
-    # lstm_regressor.run()   ALREADY TRAINED
+    regressor.run()  # ALREADY TRAINED
 
-    lstm_regressor.load_model('saved_model/lstm_model.h5')
-    data = lstm_regressor.load_data(shuffle=False)
+    # lstm_regressor.load_model('saved_model/lstm_model.keras')
+    data = regressor.load_data(shuffle=False)
     # divido i dati e creo i generators
-    train_filenames, test_filenames = lstm_regressor.split_data(data)
-    _, test_generator = lstm_regressor.generate_data(train_filenames, test_filenames)
+    train_filenames, test_filenames = regressor.split_data(data)
+    _, test_generator = regressor.generate_data(train_filenames, test_filenames)
 
-    y_preds = lstm_regressor.model.predict(test_generator)
+    y_preds = regressor.model.predict(test_generator)
 
     # devo estrarre le y dai generators
     y_true = []
@@ -205,10 +212,16 @@ if __name__ == '__main__':
         y_true.extend(y[1][:, 0, 0])
     y_true = np.array(y_true)
 
-    lstm_regressor.evaluate_model(y_preds.reshape(y_preds.shape[0], ), y_true)
+    regressor.evaluate_model(y_preds.reshape(y_preds.shape[0], ), y_true)
 
     scaled_y = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
     scaled_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
 
-    for z in zip(scaled_y, scaled_true):
-        print(z)
+    # esempio serie
+    val_true = test_generator[0]
+    val_pred = regressor.model.predict(val_true[0])
+    plt.plot(val_true[0][0, :, 4])
+    plt.plot(len(val_true[0][0, :, 4]), val_true[1][0], 'x', label="true")
+    plt.plot(len(val_true[0][0, :, 4]), val_pred[0], '-o', label="pred")
+    plt.legend()
+    plt.show()

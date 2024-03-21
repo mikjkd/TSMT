@@ -1,16 +1,20 @@
 import pickle as pkl
-import numpy as np
+
 import keras
+import numpy as np
 
 
 class CustomGenerator(keras.utils.Sequence):
-    def __init__(self, filenames, batch_size, base_path='dataset/'):
+    def __init__(self, filenames, batch_size, base_path='dataset/', shuffle=False, on_end_shuffle=True):
+        super().__init__()
         self.X_filenames = filenames[:, 0]
         self.y_filenames = filenames[:, 1]
         self.batch_size = batch_size
         self.base_path = base_path
         self.indices = np.arange(filenames.shape[0])
-        np.random.shuffle(self.indices)
+        self.on_end_shuffle = on_end_shuffle
+        if shuffle:
+            np.random.shuffle(self.indices)
 
     def __len__(self):
         return (np.ceil(len(self.X_filenames)) / float(self.batch_size)).astype(int)
@@ -31,4 +35,5 @@ class CustomGenerator(keras.utils.Sequence):
         return [np.array(x_data), np.array(y_data)]
 
     def on_epoch_end(self):
-        np.random.shuffle(self.indices)
+        if self.on_end_shuffle:
+            np.random.shuffle(self.indices)

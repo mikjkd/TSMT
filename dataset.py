@@ -102,7 +102,6 @@ class DatasetGenerator:
                 pkl.dump(x, output)
             with open(base_path + fny, 'wb') as output:
                 pkl.dump(Y[idx], output)
-
         np.save(f'{base_path}/filenames.npy', filenames)
 
 
@@ -111,7 +110,7 @@ if __name__ == '__main__':
     base_path = 'dataset/'
     encoders = 'encoders/'
     scalers = 'scalers/'
-    seq_len_x = 7
+    seq_len_x = 30
     seq_len_y = 1
 
     columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
@@ -126,3 +125,4 @@ if __name__ == '__main__':
                                                    'Ru_msa', 'P_msa', 'Rn_msa'],
                                   columns_to_forecast=['Rn_olb'],
                                   save=True)
+    print('salvato')
