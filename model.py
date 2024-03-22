@@ -9,19 +9,19 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks import History
 from keras.layers import LSTM, Dense
 from keras.losses import mean_squared_error, mean_absolute_error
-from keras.optimizers import Adam
-from keras.src.saving import load_model
+from keras.src.optimizers import Adam
+from keras.src.saving.saving_api import load_model
 from keras.utils import plot_model
 
 from data_generator import CustomGenerator
 
 
 class RegressorModel:
-    def __init__(self, model_name, data_path):
+    def __init__(self, model_name, data_path, batch_size=32):
         self.data_path: str = data_path
         self.model: Optional[keras.Model] = None
         self.model_name: str = model_name
-        self.batch_size: int = 64
+        self.batch_size: int = batch_size
         self.history: Optional[History] = None
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
@@ -44,29 +44,33 @@ class RegressorModel:
         test_filenames = data[int(len(data) * test_p):-1]
         return train_filenames, test_filenames
 
-    def generate_data(self, train_filenames, test_filenames, batch_size=64):
+    def generate_data(self, train_filenames, test_filenames):
         # Implementazione della preparazione dei dati
-        self.batch_size = batch_size
-        train_generator = CustomGenerator(train_filenames, batch_size)
-        test_generator = CustomGenerator(test_filenames, batch_size, on_end_shuffle=True)
-        return train_generator, test_generator
+        train_generator = CustomGenerator(train_filenames, self.batch_size)
+        test_generator = CustomGenerator(test_filenames, self.batch_size, on_end_shuffle=False)
+        example_generator = CustomGenerator(train_filenames, self.batch_size)
 
-    def train_model(self, len_train, len_test, train_test_generator, config=None) -> History:
+        for idx, elem in enumerate(example_generator):
+            if idx >= 1:
+                break
+
+        input_shape = (elem[0][0].shape[0], elem[0][0].shape[1])
+        output_shape = (elem[1].shape[-1])
+        return train_generator, test_generator, input_shape, output_shape
+
+    def train_model(self, len_train, len_test, train_test_generator, data_shape, config=None) -> History:
         if config is None:
             config = {
-                'optimizer': Adam(),
+                'optimizer': Adam(learning_rate=1e-5),
                 'loss': "mse",
                 'epochs': 64,
                 'multiprocessing': False
             }
 
-        train_generator, test_generator = train_test_generator[0], train_test_generator[1]
-        for idx, elem in enumerate(train_generator):
-            if idx >= 1:
-                break
+        i = data_shape[0]
+        os = data_shape[1]
 
-        i = (elem[0][0].shape[0], elem[0][0].shape[1])
-        os = (elem[1].shape[-1])
+        train, test = train_test_generator[0], train_test_generator[1]
 
         self.model = self.generate_model(input_shape=i, output_shape=os)
 
@@ -86,9 +90,9 @@ class RegressorModel:
         workers = 0 if not is_multiprocessing else config['workers']
         self.model.compile(loss=loss, optimizer=optimizer, metrics=['mse'])
 
-        history = self.model.fit(x=train_generator,
+        history = self.model.fit(x=train,
                                  steps_per_epoch=int(len_train // self.batch_size),
-                                 validation_data=test_generator,
+                                 validation_data=test,
                                  validation_steps=int(len_test // self.batch_size),
                                  epochs=epochs,
                                  callbacks=[mc, es]
@@ -128,9 +132,10 @@ class RegressorModel:
         data = self.load_data(shuffle=False)
         # divido i dati e creo i generators
         train_filenames, test_filenames = self.split_data(data)
-        train_generator, test_generator = self.generate_data(train_filenames, test_filenames)
+        train_generator, test_generator, input_shape, output_shape = self.generate_data(train_filenames, test_filenames)
 
-        self.history = self.train_model(len(train_filenames), len(test_filenames), [train_generator, test_generator])
+        self.history = self.train_model(len(train_filenames), len(test_filenames), [train_generator, test_generator],
+                                        data_shape=[input_shape, output_shape])
 
         plt.plot(self.history.history['loss'])
         plt.plot(self.history.history['val_loss'])
@@ -160,28 +165,11 @@ class LSTMRegressor(RegressorModel):
 
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=128, return_sequences=False)(input1)
+        l1 = LSTM(units=32, return_sequences=False)(input1)
         out = Dense(output_shape)(l1)
         model = Model(inputs=input1, outputs=out)
         return model
 
-
-"""
-        input1 = keras.Input(shape=input_shape)
-        lstm = LSTM(units=512, return_sequences=True)(input1)
-        encoder_LSTM = LSTM(units=256, return_state=True)
-        encoder_outputs, state_h, state_c = encoder_LSTM(lstm)
-        decoder = RepeatVector(120)(encoder_outputs)
-        concat = keras.layers.Concatenate(axis=2)([decoder, input2])
-        decoder_outputs, _, _ = LSTM(256, return_state=True, return_sequences=True)(concat,
-                                                                                    initial_state=[state_h, state_c])
-        out = LSTM(512, return_sequences=True)(decoder_outputs)
-        out = TimeDistributed(Dense(output_shape))(out)
-        model = Model(inputs=input1, outputs=out)
-        return model"""
-
-
-# Esempio di utilizzo della classe ForecastModel
 
 def scale_preds(preds, scaler_path):
     # Implementazione della predizione
@@ -194,15 +182,14 @@ def scale_preds(preds, scaler_path):
 
 
 if __name__ == '__main__':
-    regressor = LinearRegressor(model_name='linear_model', data_path='dataset/filenames.npy')
+    regressor = LSTMRegressor(model_name='lstm_model', data_path='dataset/filenames.npy')
+    # regressor.run()  # ALREADY TRAINED
 
-    regressor.run()  # ALREADY TRAINED
-
-    # lstm_regressor.load_model('saved_model/lstm_model.keras')
+    # regressor.load_model('saved_model/lstm_model.keras')
     data = regressor.load_data(shuffle=False)
     # divido i dati e creo i generators
     train_filenames, test_filenames = regressor.split_data(data)
-    _, test_generator = regressor.generate_data(train_filenames, test_filenames)
+    _, test_generator, __, ___ = regressor.generate_data(train_filenames, test_filenames)
 
     y_preds = regressor.model.predict(test_generator)
 
@@ -217,6 +204,8 @@ if __name__ == '__main__':
     scaled_y = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
     scaled_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
 
+    for z in zip(scaled_true, scaled_y):
+        print(z)
     # esempio serie
     val_true = test_generator[0]
     val_pred = regressor.model.predict(val_true[0])

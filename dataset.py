@@ -1,3 +1,4 @@
+import os
 import pickle as pkl
 from datetime import datetime, timedelta
 from enum import Enum
@@ -110,6 +111,19 @@ if __name__ == '__main__':
     base_path = 'dataset/'
     encoders = 'encoders/'
     scalers = 'scalers/'
+
+    if not os.path.exists(base_path):
+        os.mkdir(base_path)
+        print(f'{base_path} creata')
+
+    if not os.path.exists(encoders):
+        os.mkdir(encoders)
+        print(f'{encoders} creata')
+
+    if not os.path.exists(scalers):
+        os.mkdir(scalers)
+        print(f'{scalers} creata')
+
     seq_len_x = 30
     seq_len_y = 1
 

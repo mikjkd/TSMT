@@ -20,10 +20,11 @@ class CustomGenerator(keras.utils.Sequence):
         return (np.ceil(len(self.X_filenames)) / float(self.batch_size)).astype(int)
 
     def __getitem__(self, idx):
-        # idx*self.batch_size: (idx+1)*self.batch_size
         inds = self.indices[idx * self.batch_size:(idx + 1) * self.batch_size]
+
         batch_x = self.X_filenames[inds]
         batch_y = self.y_filenames[inds]
+
         x_data = []
         y_data = []
         for x_filename in batch_x:
@@ -32,7 +33,8 @@ class CustomGenerator(keras.utils.Sequence):
         for y_filename in batch_y:
             with open(self.base_path + y_filename, 'rb') as data:
                 y_data.append(pkl.load(data))
-        return [np.array(x_data), np.array(y_data)]
+
+        return np.array(x_data), np.array(y_data)
 
     def on_epoch_end(self):
         if self.on_end_shuffle:
