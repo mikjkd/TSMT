@@ -63,7 +63,7 @@ class RegressorModel:
             config = {
                 'optimizer': Adam(learning_rate=1e-5),
                 'loss': "mse",
-                'epochs': 64,
+                'epochs': 256,
                 'multiprocessing': False
             }
 
@@ -182,16 +182,25 @@ def scale_preds(preds, scaler_path):
 
 
 if __name__ == '__main__':
-    regressor = LSTMRegressor(model_name='lstm_model', data_path='dataset/filenames.npy')
+    lstm_model_name = 'lstm_model'
+    linear_model_name = 'linear_model_256_epochs'
+
+    lstm_regressor = LSTMRegressor(model_name=lstm_model_name, data_path='dataset/filenames.npy')
+    linear_regressor = LinearRegressor(model_name=linear_model_name, data_path='dataset/filenames.npy')
     # regressor.run()  # ALREADY TRAINED
 
-    # regressor.load_model('saved_model/lstm_model.keras')
-    data = regressor.load_data(shuffle=False)
-    # divido i dati e creo i generators
-    train_filenames, test_filenames = regressor.split_data(data)
-    _, test_generator, __, ___ = regressor.generate_data(train_filenames, test_filenames)
+    lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
+    linear_regressor.load_model(f'saved_model/{linear_model_name}.keras')
 
-    y_preds = regressor.model.predict(test_generator)
+    data = lstm_regressor.load_data(shuffle=True)
+    # divido i dati e creo i generators
+    train_filenames, test_filenames = lstm_regressor.split_data(data)
+    _, test_generator, __, ___ = lstm_regressor.generate_data(train_filenames, test_filenames)
+
+    lstm_y_preds = lstm_regressor.model.predict(test_generator)
+    linear_y_preds = linear_regressor.model.predict(test_generator)
+
+    lstm_regressor.model.evaluate(test_generator)
 
     # devo estrarre le y dai generators
     y_true = []
@@ -199,18 +208,20 @@ if __name__ == '__main__':
         y_true.extend(y[1][:, 0, 0])
     y_true = np.array(y_true)
 
-    regressor.evaluate_model(y_preds.reshape(y_preds.shape[0], ), y_true)
+    print('lstm eval')
+    lstm_regressor.model.evaluate(test_generator)
+    print('linear eval')
+    linear_regressor.model.evaluate(test_generator)
 
-    scaled_y = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
-    scaled_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
-
-    for z in zip(scaled_true, scaled_y):
-        print(z)
     # esempio serie
-    val_true = test_generator[0]
-    val_pred = regressor.model.predict(val_true[0])
-    plt.plot(val_true[0][0, :, 4])
-    plt.plot(len(val_true[0][0, :, 4]), val_true[1][0], 'x', label="true")
-    plt.plot(len(val_true[0][0, :, 4]), val_pred[0], '-o', label="pred")
-    plt.legend()
-    plt.show()
+    for _ in range(20):
+        n = np.random.randint(0, len(test_generator))
+        val_true = test_generator[n]
+        lstm_val_pred = lstm_regressor.model.predict(val_true[0])
+        linear_val_pred = linear_regressor.model.predict(val_true[0])
+        plt.plot(val_true[0][0, :, 4])
+        plt.plot(len(val_true[0][0, :, 4]), val_true[1][0], 'x', label="true")
+        plt.plot(len(val_true[0][0, :, 4]), lstm_val_pred[0], '-o', label="lstm_pred")
+        plt.plot(len(val_true[0][0, :, 4]), linear_val_pred[0], 'g*', label="lin_pred")
+        plt.legend()
+        plt.show()
