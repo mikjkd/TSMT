@@ -24,8 +24,8 @@ class DatasetGenerator:
         self.encoders = encoders
         self.scaler_path = scaler_path
 
-    def __scale_df(self, frame, columns_to_scale=None, scaler_names=None,
-                   scalerType: ScalerTypes = ScalerTypes.MINMAX):
+    def scale_df(self, frame, columns_to_scale=None, scaler_names=None,
+                 scalerType: ScalerTypes = ScalerTypes.MINMAX):
         if columns_to_scale is None:
             print('No columns to scale')
             return
@@ -63,12 +63,7 @@ class DatasetGenerator:
             frame.reset_index(inplace=True, drop=True)
         return frame
 
-    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None, end_date=None,
-                    save=True):
-        # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
-        # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
-
-        # merge dataset
+    def generate_frame(self, start_date=None, end_date=None, fill_na=True):
         df = pd.read_csv(self.data_path)
         df.columns = self.columns
 
@@ -77,17 +72,30 @@ class DatasetGenerator:
 
         if end_date:
             df = df[df['date'] <= end_date]
+        if fill_na:
+            df = df.fillna(0)
+        return df
 
-        df = df.fillna(0)
+    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None, end_date=None,
+                    save=True, cast_values=True):
+        # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
+        # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
+
+        # merge dataset
+        df = self.generate_frame(start_date=start_date, end_date=end_date)
 
         # scalo le features e rimuovo quelle inutili
 
-        frame = self.__scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
+        frame = self.scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
         print(frame_drop.columns)
         # creo le sequenze per la rete
-        X, Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+        if cast_values:
+            X, Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+        else:
+            X, Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
+
         ctfs = [list(frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
         Y = Y[:, :, ctfs]
         # pagino il dataset e lo salvo nell'apposita cartella
