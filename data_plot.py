@@ -4,6 +4,8 @@ Dataset Plotting with scaling
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 from dataset import DatasetGenerator
 
@@ -35,13 +37,33 @@ if __name__ == '__main__':
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame(fill_na=False)
-    X, y = dataset_generator.generate_XY(columns_to_scale=[],
+    X, y = dataset_generator.generate_XY(base_path, columns_to_scale=[],
                                          columns_to_drop=[],
                                          columns_to_forecast=['Rn_olb'],
                                          save=False, cast_values=False, remove_not_known=True)
 
     # prendo i valori del radon per Olibano
+    df['date'] = pd.to_datetime(df['date'])
+    x_vals = df['date'].dt.strftime("%d-%m-%y").values
     y_vals = df['Rn_olb'].values
-    plt.figure(figsize=(16, 8), dpi=80)
-    plt.plot(y_vals)
+
+    thr = 80000
+
+    t_points = np.where(y_vals < thr)
+    y_t = y_vals.copy()
+    y_t[t_points] = np.nan
+
+    for z in zip(y_vals, y_t):
+        print(z)
+
+    thr_vals = np.ones(len(y_vals))
+    thr_vals = thr * thr_vals
+
+    x_thr_val = len(y_vals) * 0.8
+
+    plt.figure(figsize=(20, 6), dpi=80)
+    plt.plot(x_vals, y_vals)
+    plt.axvline(x=x_thr_val, color='y')
+    plt.scatter(x_vals, y_t)
+    plt.plot(x_vals, thr_vals, '-b')
     plt.show()

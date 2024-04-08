@@ -63,7 +63,7 @@ class RegressorModel:
             config = {
                 'optimizer': Adam(learning_rate=1e-5),
                 'loss': "mse",
-                'epochs': 256,
+                'epochs': 512,
                 'multiprocessing': False
             }
 
@@ -162,20 +162,13 @@ class LSTMRegressor(RegressorModel):
 
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=32, return_sequences=False)(input1)
+        l1 = LSTM(units=64, return_sequences=False)(input1)
         out = Dense(output_shape)(l1)
         model = Model(inputs=input1, outputs=out)
         return model
 
 
-def scale_preds(preds, scaler_path):
-    # Implementazione della predizione
-    scaler = joblib.load(scaler_path)
-    scaled_preds = []
-    for p in preds:
-        scaled_preds.append(scaler.inverse_transform(p.reshape(-1, 1)))
-    scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
-    return scaled_preds
+
 
 
 def model(model_name):
