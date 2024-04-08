@@ -38,7 +38,7 @@ if __name__ == '__main__':
     X, y = dataset_generator.generate_XY(columns_to_scale=[],
                                          columns_to_drop=[],
                                          columns_to_forecast=['Rn_olb'],
-                                         save=False, cast_values=False)
+                                         save=False, cast_values=False, remove_not_known=True)
 
     # prendo i valori del radon per Olibano
     y_vals = df['Rn_olb'].values

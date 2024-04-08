@@ -128,10 +128,7 @@ class RegressorModel:
         # Implementazione della visualizzazione dei risultati
         pass
 
-    def run(self):
-        data = self.load_data(shuffle=False)
-        # divido i dati e creo i generators
-        train_filenames, test_filenames = self.split_data(data)
+    def run(self, train_filenames, test_filenames):
         train_generator, test_generator, input_shape, output_shape = self.generate_data(train_filenames, test_filenames)
 
         self.history = self.train_model(len(train_filenames), len(test_filenames), [train_generator, test_generator],
@@ -181,50 +178,21 @@ def scale_preds(preds, scaler_path):
     return scaled_preds
 
 
-if __name__ == '__main__':
-    lstm_model_name = 'lstm_model'
-    linear_model_name = 'linear_model_256_epochs'
-
+def model(model_name):
+    lstm_model_name = model_name
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name, data_path='dataset/filenames.npy')
-    linear_regressor = LinearRegressor(model_name=linear_model_name, data_path='dataset/filenames.npy')
-
-    #lstm_regressor.run()  # ALREADY TRAINED
-    #linear_regressor.run()  # ALREADY TRAINED
-
-    lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
-    linear_regressor.load_model(f'saved_model/{linear_model_name}.keras')
-
     data = lstm_regressor.load_data(shuffle=False)
     # divido i dati e creo i generators
     train_filenames, test_filenames = lstm_regressor.split_data(data)
+    lstm_regressor.run(train_filenames, test_filenames)
+
     _, test_generator, __, ___ = lstm_regressor.generate_data(train_filenames, test_filenames)
 
     lstm_y_preds = lstm_regressor.model.predict(test_generator)
-    linear_y_preds = linear_regressor.model.predict(test_generator)
-
     lstm_regressor.model.evaluate(test_generator)
+    return lstm_regressor
 
-    # devo estrarre le y dai generators
-    y_true = []
-    for y in test_generator:
-        y_true.extend(y[1][:, 0, 0])
-    y_true = np.array(y_true)
 
-    print('lstm eval')
-    lstm_regressor.model.evaluate(test_generator)
-    print('linear eval')
-    linear_regressor.model.evaluate(test_generator)
-
-    # esempio serie
-    for i in range(20):
-        n = np.random.randint(0, len(test_generator))
-        val_true = test_generator[n]
-        lstm_val_pred = lstm_regressor.model.predict(val_true[0])
-        linear_val_pred = linear_regressor.model.predict(val_true[0])
-        plt.plot(val_true[0][0, :, 4])
-        plt.plot(len(val_true[0][0, :, 4]), val_true[1][0], 'x', label="true")
-        plt.plot(len(val_true[0][0, :, 4]), lstm_val_pred[0], '-o', label="lstm_pred")
-        plt.plot(len(val_true[0][0, :, 4]), linear_val_pred[0], 'g*', label="lin_pred")
-        plt.legend()
-        plt.savefig(f'ex_{i}.png')
-        plt.show()
+if __name__ == '__main__':
+    model_name = 'lstm_model_no_zeros'
+    model(model_name)

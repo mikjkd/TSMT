@@ -76,8 +76,9 @@ class DatasetGenerator:
             df = df.fillna(0)
         return df
 
-    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None, end_date=None,
-                    save=True, cast_values=True):
+    def generate_XY(self, base_path, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
+                    end_date=None,
+                    save=True, cast_values=True, remove_not_known=False):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
@@ -99,6 +100,17 @@ class DatasetGenerator:
         ctfs = [list(frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
         Y = Y[:, :, ctfs]
         # pagino il dataset e lo salvo nell'apposita cartella
+
+        # rimuovo i valori che non conosco nell'outuput, questo serve a non provare a forecastare valori
+        # i buchi della serie che sono stati riempiti dal fillna(0)
+        # NB: i buchi nell'input sono accettati (X), sono quelli dell'output che creano problemi
+        # per questo si rimuove da Y, di conseguenza, poi vengono tolti anche quegli input che portano
+        # ad un forecast di uno 0
+        if remove_not_known:
+            rp = np.where(Y == 0)[0]
+            X = np.delete(X, rp, axis=0)
+            Y = np.delete(Y, rp, axis=0)
+
         filenames = []
         if not save:
             return X, Y
@@ -114,7 +126,7 @@ class DatasetGenerator:
         np.save(f'{base_path}/filenames.npy', filenames)
 
 
-if __name__ == '__main__':
+def generate_dataset():
     data_path = 'data/olb_msa_full.csv'
     base_path = 'dataset/'
     encoders = 'encoders/'
@@ -141,10 +153,14 @@ if __name__ == '__main__':
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+    dataset_generator.generate_XY(base_path=base_path, columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                   columns_to_drop=['date', 'displacement (cm)',
                                                    'background seismicity', 'T_msa',
                                                    'Ru_msa', 'P_msa', 'Rn_msa'],
                                   columns_to_forecast=['Rn_olb'],
-                                  save=True)
+                                  save=True, remove_not_known=True)
     print('salvato')
+
+
+if __name__ == '__main__':
+    generate_dataset()
