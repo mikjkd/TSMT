@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import pearsonr
 
+from data_generator import BaseDataset
 from model import LSTMRegressor
 
 
@@ -70,15 +71,14 @@ def eval_pearsonsr(regressor, generator, y_true):
 
 def eval():
     lstm_model_name = 'lstm_model_no_zeros'
-
-    lstm_regressor = LSTMRegressor(model_name=lstm_model_name, data_path='dataset/filenames.npy')
-
+    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
-    data = lstm_regressor.load_data(shuffle=False)
+    dataset = BaseDataset(data_path='dataset/filenames.npy')
+    data = dataset.load_data(shuffle=False)
     # divido i dati e creo i generators
-    train_filenames, test_filenames = lstm_regressor.split_data(data)
-    _, test_generator, __, ___ = lstm_regressor.generate_data(train_filenames, test_filenames)
+    train_filenames, test_filenames = dataset.split_data(data)
+    _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
 
     print('lstm eval')
     lstm_regressor.model.evaluate(test_generator)
