@@ -1,6 +1,6 @@
 from data_generator import BaseDataset
 from dataset import generate_dataset
-from model import ModelTrainer, LSTMRegressor
+from model import ModelTrainer, LSTMRegressor, LinearRegressor
 
 if __name__ == '__main__':
     # genero il dataset
@@ -16,18 +16,18 @@ if __name__ == '__main__':
     train_generator, test_generator, input_shape, output_shape = dataset.generate_data(train_filenames, test_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
-    lstm_model_name = 'lstm_model_no_zeros'
-    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
-    lstm_regressor.generate_model(input_shape, output_shape)
+    model_name = 'lin_model_no_zeros'
+    regressor = LinearRegressor(model_name=model_name)
+    regressor.generate_model(input_shape, output_shape)
 
     # alleno il modello
     trainer.run(
-        model=lstm_regressor.model,
-        model_name=lstm_regressor.model_name,
+        model=regressor.model,
+        model_name=regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
         test={'filenames': test_filenames, 'generator': test_generator},
-        shapes={'inout': input_shape, 'output': output_shape}
+        shapes={'input': input_shape, 'output': output_shape}
     )
 
-    lstm_y_preds = lstm_regressor.model.predict(test_generator)
-    lstm_regressor.model.evaluate(test_generator)
+    lstm_y_preds = regressor.model.predict(test_generator)
+    regressor.model.evaluate(test_generator)

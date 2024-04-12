@@ -55,11 +55,11 @@ class ModelTrainer:
             'model_name': model_name,
             'len_train': len(train['filenames']),
             'len_test': len(test['filenames']),
-            'train_gen': train['generator'],
-            'test_gen': test['generator'],
+            'train_generator': train['generator'],
+            'test_generator': test['generator'],
             'input_shape': shapes['input'],
             'output_shape': shapes['output'],
-            'optimizer': Adam(learning_rate=1e-5),
+            'optimizer': Adam(),
             'loss': "mse",
             'epochs': 512,
             'multiprocessing': False
@@ -121,8 +121,7 @@ class LinearRegressor(RegressorModel):
         model.add(keras.layers.Flatten(input_shape=input_shape))
         # Aggiungi il layer Dense successivo
         model.add(keras.layers.Dense(units=output_shape))  # specifica il numero di unità del layer Dense
-        return model
-
+        self.model = model
 
 # carico dati
 
