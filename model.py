@@ -13,6 +13,8 @@ from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
 from keras.utils import plot_model
 
+from data_generator import BaseDataset
+
 
 class ModelTrainer:
     def __init__(self, batch_size):
@@ -123,6 +125,7 @@ class LinearRegressor(RegressorModel):
         model.add(keras.layers.Dense(units=output_shape))  # specifica il numero di unità del layer Dense
         self.model = model
 
+
 # carico dati
 
 
@@ -138,33 +141,32 @@ class LSTMRegressor(RegressorModel):
         # return self.model
 
 
-""" Esempio utilizzo
-if __name__ =='__main__':        #model
-    lstm_model_name = 'model_name'
+if __name__ == '__main__':  # model
+    lstm_model_name = 'lstm_augmented_model'
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
-    #dataset
-    dataset = BaseDataset(data_path='dataset/filenames.npy')
-    #trainer
+    # dataset
+    dataset = BaseDataset(data_path='dataset')
+    # trainer
     trainer = ModelTrainer(batch_size=64)
 
     # carico i dati, li divido e creo i generators
-    data = dataset.load_data(shuffle=False)
-    train_filenames, test_filenames = dataset.split_data(data)
+    train_filenames, test_filenames = dataset.load_data(shuffle=False)
+    # li carico già divisi, non serve più splittarli
+    # train_filenames, test_filenames = dataset.split_data(data)
     train_generator, test_generator, input_shape, output_shape = dataset.generate_data(train_filenames, test_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
     lstm_regressor.generate_model(input_shape, output_shape)
 
-    #alleno il modello
+    # alleno il modello
     trainer.run(
         model=lstm_regressor.model,
         model_name=lstm_regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
         test={'filenames': test_filenames, 'generator': test_generator},
-        shapes={'inout': input_shape, 'output': output_shape}
+        shapes={'input': input_shape, 'output': output_shape}
     )
 
     lstm_y_preds = lstm_regressor.model.predict(test_generator)
     lstm_regressor.model.evaluate(test_generator)
-    return lstm_regressor
-"""
+    # return lstm_regressor

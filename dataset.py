@@ -206,10 +206,10 @@ def generate_dataset():
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
 
     # augmenting del training set
-    aX, aY = dataset_generator.augment(X_train[:, :, 1:], y_train, mean=0, variance=0.001, num_replies=3)
+    #aX, aY = dataset_generator.augment(X_train[:, :, 1:], y_train, mean=0, variance=0.001, num_replies=3)
 
     # salvataggio trainin e test set
-    dataset_generator.save_XY(aX, aY, base_path, 'train')
+    dataset_generator.save_XY(X_train, y_train, base_path, 'train')
     dataset_generator.save_XY(X_test, y_test, base_path, 'test')
 
 

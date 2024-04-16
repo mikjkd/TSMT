@@ -42,19 +42,25 @@ class CustomGenerator(keras.utils.Sequence):
 
 
 class BaseDataset:
-    def __init__(self, data_path):
+    def __init__(self, data_path, train_data_name = 'train_filenames.npy', test_data_name = 'test_filenames.npy'):
         self.data_path = data_path
+        self.train_data_path = f'{self.data_path}/{train_data_name}'
+        self.test_data_path = f'{self.data_path}/{test_data_name}'
 
     def load_data(self, shuffle=False):
         # Implementazione del caricamento dei dati
-        data = np.load(self.data_path)
+        train_data = np.load(self.train_data_path)
+        test_data = np.load(self.test_data_path)
         # shuffle filenames
         if shuffle:
-            idx = np.arange(len(data))
+            idx = np.arange(len(train_data))
             np.random.shuffle(idx)
-            data = data[idx]
-        return data
+            train_data = train_data[idx]
+        return train_data, test_data
 
+    """
+        deprecato: il dataset prima era unico, attualmente è già diviso in train e test
+    """
     def split_data(self, data, test_p=0.8, train_p=0.2):
         # Implementazione della divisione dei dati
         # train_test split
