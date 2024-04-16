@@ -132,8 +132,7 @@ class DatasetGenerator:
             with open(base_path + fny, 'wb') as output:
                 pkl.dump(Y[idx], output)
         np.save(f'{base_path}/filenames.npy', filenames)
-
-    print('salvato')
+        print('salvato')
 
     """
         metodo per data augmentation:
@@ -143,15 +142,16 @@ class DatasetGenerator:
     """
 
     @staticmethod
-    def augment(X, Y, mean=0, variance=1.0):
+    def augment(X, Y, mean=0, variance=1.0, num_replies=5):
         sigma = variance ** 0.5
         new_X = []
         new_Y = []
-        for idx, x in enumerate(X):
-            x_gauss = np.random.normal(mean, sigma, (x.shape[0], x.shape[1]))
-            y_gauss = np.random.normal(mean, sigma, (1, 1))
-            new_X.append(x + x_gauss)
-            new_Y.append(Y[idx] + y_gauss)
+        for n in range(num_replies):
+            for idx, x in enumerate(X):
+                x_gauss = np.random.normal(mean, sigma, (x.shape[0], x.shape[1]))
+                y_gauss = np.random.normal(mean, sigma, (1, 1))
+                new_X.append(x + x_gauss)
+                new_Y.append(Y[idx] + y_gauss)
         return np.append(X, np.array(new_X), axis=0), np.append(Y, np.array(new_Y), axis=0)
 
     """
