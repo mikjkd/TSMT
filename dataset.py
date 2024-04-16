@@ -7,12 +7,17 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from libV2 import minMaxScale, standardScale, split_sequence
+from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean
 
 
 class ScalerTypes(Enum):
     MINMAX = 'minmax'
     STD = 'standard'
+
+
+class FillnaTypes(Enum):
+    SIMPLE = 'simple'
+    MEAN = 'mean'
 
 
 class DatasetGenerator:
@@ -63,7 +68,8 @@ class DatasetGenerator:
             frame.reset_index(inplace=True, drop=True)
         return frame
 
-    def generate_frame(self, start_date=None, end_date=None, fill_na=True):
+    def generate_frame(self, start_date=None, end_date=None, fill_na=True,
+                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         df = pd.read_csv(self.data_path)
         df.columns = self.columns
 
@@ -73,7 +79,10 @@ class DatasetGenerator:
         if end_date:
             df = df[df['date'] <= end_date]
         if fill_na:
-            df = df.fillna(0)
+            if fill_na_type == FillnaTypes.SIMPLE:
+                df = df.fillna(0)
+            elif fill_na_type == FillnaTypes.MEAN:
+                df = fill_na_mean(df, self.columns)
         return df
 
     def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
@@ -82,10 +91,8 @@ class DatasetGenerator:
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
         # merge dataset
-        df = self.generate_frame(start_date=start_date, end_date=end_date)
-
+        df = self.generate_frame(start_date=start_date, end_date=end_date, fill_na_type=FillnaTypes.MEAN)
         # scalo le features e rimuovo quelle inutili
-
         frame = self.scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
@@ -195,7 +202,7 @@ def generate_dataset():
                                          columns_to_forecast=['Rn_olb'], remove_not_known=True)
     aX, aY = dataset_generator.augment(X, Y)
     print(aX, aY)
-    # dataset_generator.save_XY(X, Y, base_path)
+    dataset_generator.save_XY(X, Y, base_path)
 
 
 if __name__ == '__main__':

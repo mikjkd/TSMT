@@ -1,20 +1,19 @@
 import pickle as pkl
 from datetime import datetime
 from random import shuffle
+from typing import List
 
+import keras
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import pytz
 # importing the requests library
 import requests
 import tensorflow as tf
 from keras import backend as K
+from keras.callbacks import Callback
 from keras.models import model_from_json
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-import keras
-from keras.callbacks import Callback
 
 
 def plot_set(images, labels=None, rows=5, cols=5, mul_size=1.5):
@@ -81,8 +80,6 @@ def plot_predictions(predictions, class_names, images, labels, print_perc=True, 
 def print_accuracy(test_acc, test_loss):
     print('Accuracy on the Test set: {:.2f}% (loss = {:.3f})'.format(
         test_acc * 100, test_loss))
-
-
 
 
 def plot_history(name, history):
@@ -178,7 +175,6 @@ def train_model(X, y, model, n_epochs, batch_size, loss_fn, optimizer):
     return gradhistory, losshistory
 
 
-
 def plot_gradient(gradhistory, losshistory):
     "Plot gradient mean and sd across epochs"
     fig, ax = plt.subplots(
@@ -209,7 +205,6 @@ def save_model_to_file(model, filename):
     print("Saved model to disk")
 
 
-
 def load_model_from_file(filename):
     json_fn = '{}.json'.format(filename)
     h5_fn = '{}.h5'.format(filename)
@@ -233,6 +228,7 @@ def accuracy(pred, labels):
         if np.argmax(pred[j]) == labels[j][0]:
             count += 1
     return count / total
+
 
 # split a univariate sequence into samples
 def split_sequence(sequence, n_steps, n_steps_y=1):
@@ -321,6 +317,39 @@ def oheData(seq, filename, map=None):
             # print(a[0])
             transformed.append(map[a])
     return np.array(transformed)
+
+
+"""
+    Problema dei na values nel df:
+    riempio i valori nan con la media dei valori precedenti
+    x[i] = NaN => x[i] = (x[i-1]+x[i+1])/2
+"""
+
+
+def fill_na_mean(df, target_columns: List):
+    frame = df.copy()
+    # per ogni colonna target sostituisco i valori nan
+    for idx, c in enumerate(target_columns):
+        # trovo le posizioni dei nan
+        # alcuni valori non hanno nan, come ad esempio le date, per loro viene generata un'eccezione
+        # e quindi si passa alla colonna successiva
+        try:
+            zero_pos = frame[np.isnan(frame[c].values)].index
+            for zp in zero_pos:
+                # primo valore precedente allo zero
+                v0 = 0
+                v1 = 0
+                if zp > 0:
+                    # prendo l'ultimo valore diverso da nan prima della posizione dello zero
+                    v0 = frame[:zp].values[~np.isnan(frame[c].values[:zp])][-1, idx]
+                # primo valore successivo allo zero
+                if zp < len(df):
+                    # prendo il primo valore diverso da nan dopo la posizione dello zero
+                    v1 = frame[zp:].values[~np.isnan(frame[c].values[zp:])][0, idx]
+                frame.at[zp, c] = (v0 + v1) / 2
+        except:
+            pass
+    return frame
 
 
 def preprocess_ds(frame, refill_zero=False, drop_zero=False, isMultipleTS=True, setIsCap=True, setIsWeekend=True,
@@ -553,6 +582,3 @@ def get_history_weather(lat, lon, date, timeshift):
     r = requests.get(url=URL)
     # print(r.json())
     return r
-
-
-
