@@ -2,6 +2,7 @@ import os
 import pickle as pkl
 from datetime import datetime, timedelta
 from enum import Enum
+from math import floor, ceil
 
 import joblib
 import numpy as np
@@ -120,18 +121,18 @@ class DatasetGenerator:
         return X, Y
 
     @staticmethod
-    def save_XY(X, Y, base_path):
+    def save_XY(X, Y, base_path, filename):
         filenames = []
 
         for idx, x in enumerate(X):
-            fnx = f'X_{idx}'
-            fny = f'Y_{idx}'
+            fnx = f'{filename}_X_{idx}'
+            fny = f'{filename}_Y_{idx}'
             filenames.append([fnx, fny])
             with open(base_path + fnx, 'wb') as output:
                 pkl.dump(x, output)
             with open(base_path + fny, 'wb') as output:
                 pkl.dump(Y[idx], output)
-        np.save(f'{base_path}/filenames.npy', filenames)
+        np.save(f'{base_path}/{filename}_filenames.npy', filenames)
         print('salvato')
 
     """
@@ -195,14 +196,21 @@ def generate_dataset():
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    X, Y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                          columns_to_drop=['date', 'displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'], remove_not_known=True)
-    aX, aY = dataset_generator.augment(X, Y)
-    print(aX, aY)
-    dataset_generator.save_XY(X, Y, base_path)
+                                         columns_to_forecast=['Rn_olb'])
+    # divisione train e test
+    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
+    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
+
+    # augmenting del training set
+    aX, aY = dataset_generator.augment(X_train[:, :, 1:], y_train, mean=0, variance=0.001, num_replies=3)
+
+    # salvataggio trainin e test set
+    dataset_generator.save_XY(aX, aY, base_path, 'train')
+    dataset_generator.save_XY(X_test, y_test, base_path, 'test')
 
 
 if __name__ == '__main__':
