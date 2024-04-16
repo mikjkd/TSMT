@@ -76,9 +76,8 @@ class DatasetGenerator:
             df = df.fillna(0)
         return df
 
-    def generate_XY(self, base_path, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
-                    end_date=None,
-                    save=True, cast_values=True, remove_not_known=False):
+    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
+                    end_date=None, cast_values=True, remove_not_known=False):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
@@ -111,9 +110,11 @@ class DatasetGenerator:
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
 
+        return X, Y
+
+    @staticmethod
+    def save_XY(X, Y, base_path):
         filenames = []
-        if not save:
-            return X, Y
 
         for idx, x in enumerate(X):
             fnx = f'X_{idx}'
@@ -124,6 +125,40 @@ class DatasetGenerator:
             with open(base_path + fny, 'wb') as output:
                 pkl.dump(Y[idx], output)
         np.save(f'{base_path}/filenames.npy', filenames)
+
+    print('salvato')
+
+    """
+        metodo per data augmentation:
+        a partire dal dataset X,y generato dalla serie originale,
+        vengono riprodotte num_replies copie dei punti precedenti 
+        affetti da rumore 
+    """
+
+    @staticmethod
+    def augment(X, Y, mean=0, variance=1.0):
+        sigma = variance ** 0.5
+        new_X = []
+        new_Y = []
+        for idx, x in enumerate(X):
+            x_gauss = np.random.normal(mean, sigma, (x.shape[0], x.shape[1]))
+            y_gauss = np.random.normal(mean, sigma, (1, 1))
+            new_X.append(x + x_gauss)
+            new_Y.append(Y[idx] + y_gauss)
+        return np.append(X, np.array(new_X), axis=0), np.append(Y, np.array(new_Y), axis=0)
+
+    """
+    target_col = 5
+    unfold del dataset composto da (len(df['Rn_olb'])-30-1, 30, 12) elementi
+    alla serie temporale di partenza
+    """
+
+    @staticmethod
+    def get_ts_from_ds(X, y, target_col):
+        rn = X[:, 0, target_col]
+        rn = np.append(rn[:-1], X[-1, :, target_col])
+        rn = np.append(rn, y[-1])
+        return rn
 
 
 def generate_dataset():
@@ -153,13 +188,14 @@ def generate_dataset():
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    dataset_generator.generate_XY(base_path=base_path, columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
-                                  columns_to_drop=['date', 'displacement (cm)',
-                                                   'background seismicity', 'T_msa',
-                                                   'Ru_msa', 'P_msa', 'Rn_msa'],
-                                  columns_to_forecast=['Rn_olb'],
-                                  save=True, remove_not_known=True)
-    print('salvato')
+    X, Y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+                                         columns_to_drop=['date', 'displacement (cm)',
+                                                          'background seismicity', 'T_msa',
+                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
+                                         columns_to_forecast=['Rn_olb'], remove_not_known=True)
+    aX, aY = dataset_generator.augment(X, Y)
+    print(aX, aY)
+    # dataset_generator.save_XY(X, Y, base_path)
 
 
 if __name__ == '__main__':
