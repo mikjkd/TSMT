@@ -61,9 +61,13 @@ class BaseDataset:
         deprecato: il dataset prima era unico, attualmente è già diviso in train e test
     """
 
-    def split_train_valid(self, data, train_p=0.9):
+    def split_train_valid(self, data, train_p=0.9, shuffle=False):
         # Implementazione della divisione dei dati
         # train_test split
+        if shuffle:
+            idx = np.arange(len(data))
+            np.random.shuffle(idx)
+            data = data[idx]
         train_filenames = data[:int(len(data) * train_p)]
         valid_filenames = data[int(len(data) * train_p):-1]
         return train_filenames, valid_filenames

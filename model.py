@@ -31,7 +31,7 @@ class ModelTrainer:
         epochs = config['epochs']
         is_multiprocessing = config['multiprocessing']
         workers = 0 if not is_multiprocessing else config['workers']
-        model.compile(loss=loss, optimizer=optimizer, metrics=['mse'])
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss)
 
         plot_model(model)
         model.summary()
@@ -49,7 +49,7 @@ class ModelTrainer:
 
         return history
 
-    def run(self, model, model_name, train, test):
+    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.0001), loss='mae', epochs=512):
         config = {
             'model': model,
             'model_name': model_name,
@@ -57,16 +57,16 @@ class ModelTrainer:
             'len_test': len(test['filenames']),
             'train_generator': train['generator'],
             'test_generator': test['generator'],
-            'optimizer': Adam(),
-            'loss': "mse",
-            'epochs': 512,
+            'optimizer': optimizer,
+            'loss': loss,
+            'epochs': epochs,
             'multiprocessing': False
         }
 
         history = self.train_model(config)
 
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
+        plt.plot(history.history['loss'], label=f"{config['loss']}")
+        plt.plot(history.history['val_loss'], label=f"val_{config['loss']}")
         plt.legend()
         plt.show()
 
@@ -86,6 +86,7 @@ class RegressorModel:
 
     def evaluate_model(self, y_pred, y_true):
         # Implementazione della valutazione del modello
+        y_pred = y_pred.reshape(-1)
         mse = mean_squared_error(y_true, y_pred)
         mae = mean_absolute_error(y_true, y_pred)
         rmse = np.sqrt(mse)
@@ -131,28 +132,28 @@ class LSTMRegressor(RegressorModel):
 
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=64, return_sequences=False)(input1)
+        l1 = LSTM(units=128, return_sequences=False)(input1)
         out = Dense(output_shape)(l1)
         self.model = Model(inputs=input1, outputs=out)
         # return self.model
 
 
 if __name__ == '__main__':  # model
-    lstm_model_name = 'lstm_mae_model_with_valid'
-    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     # dataset
     dataset = BaseDataset(data_path='dataset')
     # trainer
-    trainer = ModelTrainer(batch_size=64)
+    trainer = ModelTrainer(batch_size=32)
 
     # carico i dati, li divido e creo i generators
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # li carico già divisi, non serve più splittarli
-    train_filenames, valid_filenames = dataset.split_train_valid(train_filenames)
+    train_filenames, valid_filenames = dataset.split_train_valid(train_filenames, shuffle=True)
     train_generator, valid_generator, input_shape, output_shape = dataset.generate_data(train_filenames,
                                                                                         valid_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
+    lstm_model_name = 'lstm_mae_model_with_valid_bs32'
+    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.generate_model(input_shape, output_shape)
 
     # alleno il modello

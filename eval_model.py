@@ -55,8 +55,8 @@ def eval_pearsonsr(regressor, generator, y_true):
     # wtr = np.where(scaled_y_true > 120000)[0]
     # scaled_y_true = np.delete(scaled_y_true, wtr)
     # scaled_y_preds = np.delete(scaled_y_preds, wtr)
-    for z in zip(scaled_y_true, scaled_y_preds):
-        print(f'true: {z[0]} ; pred: {z[1]}')
+    #for z in zip(scaled_y_true, scaled_y_preds):
+    #    print(f'true: {z[0]} ; pred: {z[1]}')
 
     corr, _ = pearsonr(y_true, y_preds.reshape(-1))
     print('Pearsons correlation: %.3f' % corr)
@@ -70,8 +70,7 @@ def eval_pearsonsr(regressor, generator, y_true):
     plt.show()
 
 
-def eval():
-    lstm_model_name = 'lstm_mae_model_with_valid' #'lstm_mae_model'
+def eval(lstm_model_name = 'lstm_mae_model_with_valid_bs32'):
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
@@ -80,9 +79,6 @@ def eval():
     # divido i dati e creo i generators
     train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
 
-    print('lstm eval')
-    lstm_regressor.model.evaluate(test_generator)
-
     # devo estrarre le y dai generators
     y_true = []
     for y in test_generator:
@@ -90,6 +86,9 @@ def eval():
     y_true = np.array(y_true)
 
     y_preds = lstm_regressor.model.predict(test_generator)
+
+    print('lstm eval')
+    lstm_regressor.evaluate_model(y_pred = y_preds, y_true= y_true)
 
     scaler = joblib.load('scalers/Rn_olb_scaler.save')
 
