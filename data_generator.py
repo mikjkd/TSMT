@@ -42,7 +42,7 @@ class CustomGenerator(keras.utils.Sequence):
 
 
 class BaseDataset:
-    def __init__(self, data_path, train_data_name = 'train_filenames.npy', test_data_name = 'test_filenames.npy'):
+    def __init__(self, data_path, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
         self.data_path = data_path
         self.train_data_path = f'{self.data_path}/{train_data_name}'
         self.test_data_path = f'{self.data_path}/{test_data_name}'
@@ -61,12 +61,13 @@ class BaseDataset:
     """
         deprecato: il dataset prima era unico, attualmente è già diviso in train e test
     """
-    def split_data(self, data, test_p=0.8, train_p=0.2):
+
+    def split_train_valid(self, data, train_p=0.9):
         # Implementazione della divisione dei dati
         # train_test split
-        train_filenames = data[:int(len(data) * test_p)]
-        test_filenames = data[int(len(data) * test_p):-1]
-        return train_filenames, test_filenames
+        train_filenames = data[:int(len(data) * train_p)]
+        valid_filenames = data[int(len(data) * train_p):-1]
+        return train_filenames, valid_filenames
 
     def generate_data(self, train_filenames, test_filenames, batch_size=32):
         # Implementazione della preparazione dei dati

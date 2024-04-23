@@ -142,7 +142,7 @@ class LSTMRegressor(RegressorModel):
 
 
 if __name__ == '__main__':  # model
-    lstm_model_name = 'lstm_augmented_model'
+    lstm_model_name = 'lstm_mae_model_with_valid'
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     # dataset
     dataset = BaseDataset(data_path='dataset')
@@ -152,8 +152,9 @@ if __name__ == '__main__':  # model
     # carico i dati, li divido e creo i generators
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # li carico già divisi, non serve più splittarli
-    # train_filenames, test_filenames = dataset.split_data(data)
-    train_generator, test_generator, input_shape, output_shape = dataset.generate_data(train_filenames, test_filenames)
+    train_filenames, valid_filenames = dataset.split_train_valid(train_filenames)
+    train_generator, valid_generator, input_shape, output_shape = dataset.generate_data(train_filenames,
+                                                                                        valid_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
     lstm_regressor.generate_model(input_shape, output_shape)
@@ -163,10 +164,11 @@ if __name__ == '__main__':  # model
         model=lstm_regressor.model,
         model_name=lstm_regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
-        test={'filenames': test_filenames, 'generator': test_generator},
+        test={'filenames': valid_filenames, 'generator': valid_generator},
         shapes={'input': input_shape, 'output': output_shape}
     )
 
+    _, test_generator, __, ___ = dataset.generate_data(train_filenames, valid_filenames)
     lstm_y_preds = lstm_regressor.model.predict(test_generator)
     lstm_regressor.model.evaluate(test_generator)
     # return lstm_regressor

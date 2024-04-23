@@ -54,10 +54,8 @@ if __name__ == '__main__':
     # è un modo per passare da dataset alla colonna del dataframe
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
-    rn = aX[:, 0, -1]
-    rn = np.append(rn[:-1], aX[-1, :, -1])
-    rn = np.append(rn, aY[-1])
-
+    rn = DatasetGenerator.get_ts_from_ds(X,y, -1)
+    arn = DatasetGenerator.get_ts_from_ds(aX,aY, -1)
     # prendo i valori del radon per Olibano
     df['date'] = pd.to_datetime(df['date'])
     x_vals = df['date'].dt.strftime("%d-%m-%y").values
@@ -94,4 +92,7 @@ if __name__ == '__main__':
     plt.scatter(x_vals, y_t)
     # stampo la retta orizzontale y = thr
     plt.plot(x_vals, thr_vals, '-b')
+    plt.show()
+
+    plt.plot(aX)
     plt.show()

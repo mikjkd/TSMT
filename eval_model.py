@@ -4,6 +4,7 @@ import numpy as np
 from scipy.stats import pearsonr
 
 from data_generator import BaseDataset
+from dataset import DatasetGenerator
 from model import LSTMRegressor
 
 
@@ -70,15 +71,14 @@ def eval_pearsonsr(regressor, generator, y_true):
 
 
 def eval():
-    lstm_model_name = 'lstm_model_no_zeros'
+    lstm_model_name = 'lstm_mae_model_with_valid' #'lstm_mae_model'
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
-    dataset = BaseDataset(data_path='dataset/filenames.npy')
-    data = dataset.load_data(shuffle=False)
+    dataset = BaseDataset(data_path='dataset')
+    train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # divido i dati e creo i generators
-    train_filenames, test_filenames = dataset.split_data(data)
-    _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
+    train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
 
     print('lstm eval')
     lstm_regressor.model.evaluate(test_generator)
@@ -130,16 +130,43 @@ def eval():
     ok_vals = scaled_y_true.copy().astype(float)
     ok_vals[mean_p] = np.nan
     plt.plot(x_vals, scaled_y_true, color='black')
-    #plt.scatter(x_vals, ok_vals, marker='x', color='green')
+    # plt.scatter(x_vals, ok_vals, marker='x', color='green')
     plt.scatter(x_vals, thr_vals, marker='x', color='red')
     plt.show()
 
     # disegno 30 step della serie e mostro la predizione
     # plot_example_pred(test_generator, lstm_regressor)
 
-    # eval_pearsonsr(lstm_regressor, test_generator, y_true)
+    eval_pearsonsr(lstm_regressor, test_generator, y_true)
 
     # plot real vs forecast
+    X = []
+    y = []
+    for x in test_generator:
+        X.extend(x[0])
+        y.extend(x[1])
+
+    rn = DatasetGenerator.get_ts_from_ds(np.array(X), np.array(y), target_col=-1)
+    plt.figure(figsize=(20,6), dpi=80)
+    plt.plot(rn)
+    plt.show()
+
+    # plot train set
+    X = []
+    y = []
+    for x in train_generator:
+        X.extend(x[0])
+        y.extend(x[1])
+
+    rn = DatasetGenerator.get_ts_from_ds(np.array(X), np.array(y), target_col=-1)
+    plt.figure(figsize=(20,6), dpi=80)
+    plt.plot(rn)
+    plt.show()
+
+    plt.plot(scaled_y_true, label='true')
+    plt.plot(scaled_y_preds, label='preds')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == '__main__':
