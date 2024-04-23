@@ -12,8 +12,8 @@ if __name__ == '__main__':
     ### configuration
     data_path = 'dataset'
     batch_size = 64
-    learning_rate = 0.0001
-    loss = 'mse'
+    learning_rate = 0.001
+    loss = 'mae'
     # dataset
     dataset = BaseDataset(data_path=data_path)
     # trainer
