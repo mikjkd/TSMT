@@ -38,7 +38,7 @@ if __name__ == '__main__':
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame(fill_na=False)
-    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+    X, y = dataset_generator.generate_XY(columns_to_scale=[],
                                          columns_to_drop=['displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
@@ -47,7 +47,8 @@ if __name__ == '__main__':
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
 
-    aX, aY = dataset_generator.augment(X_train[:, :, 1:], y_train, mean=0, variance=0.001, num_replies=3)
+
+
     # unfold del dataset composto da (len(df['Rn_olb'])-30-1, 30, 12) elementi
     # in questo modo, rn conterrà len(df['Rn_olb']) valori, che corrispondono alle
     # misure di Radon da plottare
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
     rn = DatasetGenerator.get_ts_from_ds(X,y, -1)
-    arn = DatasetGenerator.get_ts_from_ds(aX,aY, -1)
+    rn_test = DatasetGenerator.get_ts_from_ds(X_test,y_test, -1)
     # prendo i valori del radon per Olibano
     df['date'] = pd.to_datetime(df['date'])
     x_vals = df['date'].dt.strftime("%d-%m-%y").values
@@ -68,7 +69,7 @@ if __name__ == '__main__':
     plt.show()
 
     # definisco la threshold sopra la quale plottare i puntini
-    thr = 80000
+    thr = 140000
 
     t_points = np.where(y_vals < thr)
     y_t = y_vals.copy()
@@ -85,7 +86,7 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(20, 6), dpi=80)
     # stampo i valori
-    plt.plot(x_vals, y_vals)
+    plt.plot(x_vals, rn)
     # stampo la retta verticale che divide il dataset all'80%
     plt.axvline(x=x_thr_val, color='y')
     # stampo i puntini sui valori che superano la soglia
@@ -94,5 +95,10 @@ if __name__ == '__main__':
     plt.plot(x_vals, thr_vals, '-b')
     plt.show()
 
-    plt.plot(aX)
+    plt.figure(figsize=(20, 6), dpi=80)
+    # stampo i valori di test
+    plt.plot(rn_test)    # stampo la retta orizzontale y = thr
+    plt.plot( np.ones(len(rn_test))*thr, '-b')
     plt.show()
+
+

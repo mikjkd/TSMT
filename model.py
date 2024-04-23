@@ -21,8 +21,6 @@ class ModelTrainer:
         self.batch_size: int = batch_size
 
     def train_model(self, config) -> History:
-        i = config['input_shape']
-        os = config['output_shape']
         model = config['model']
         model_name = config['model_name']
         len_train = config['len_train']
@@ -51,7 +49,7 @@ class ModelTrainer:
 
         return history
 
-    def run(self, model, model_name, train, test, shapes):
+    def run(self, model, model_name, train, test):
         config = {
             'model': model,
             'model_name': model_name,
@@ -59,8 +57,6 @@ class ModelTrainer:
             'len_test': len(test['filenames']),
             'train_generator': train['generator'],
             'test_generator': test['generator'],
-            'input_shape': shapes['input'],
-            'output_shape': shapes['output'],
             'optimizer': Adam(),
             'loss': "mse",
             'epochs': 512,
@@ -165,7 +161,6 @@ if __name__ == '__main__':  # model
         model_name=lstm_regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
         test={'filenames': valid_filenames, 'generator': valid_generator},
-        shapes={'input': input_shape, 'output': output_shape}
     )
 
     _, test_generator, __, ___ = dataset.generate_data(train_filenames, valid_filenames)

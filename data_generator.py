@@ -17,11 +17,10 @@ class CustomGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indices)
 
     def __len__(self):
-        return (np.ceil(len(self.X_filenames)) / float(self.batch_size)).astype(int)
+        return (np.ceil(len(self.X_filenames) / float(self.batch_size))).astype(int)
 
     def __getitem__(self, idx):
         inds = self.indices[idx * self.batch_size:(idx + 1) * self.batch_size]
-
         batch_x = self.X_filenames[inds]
         batch_y = self.y_filenames[inds]
 

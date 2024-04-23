@@ -11,8 +11,7 @@ if __name__ == '__main__':
     trainer = ModelTrainer(batch_size=64)
 
     # carico i dati, li divido e creo i generators
-    data = dataset.load_data(shuffle=False)
-    train_filenames, test_filenames = dataset.split_data(data)
+    train_filenames, test_filenames = dataset.load_data(shuffle=False)
     train_generator, test_generator, input_shape, output_shape = dataset.generate_data(train_filenames, test_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
@@ -26,7 +25,6 @@ if __name__ == '__main__':
         model_name=regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
         test={'filenames': test_filenames, 'generator': test_generator},
-        shapes={'input': input_shape, 'output': output_shape}
     )
 
     lstm_y_preds = regressor.model.predict(test_generator)
