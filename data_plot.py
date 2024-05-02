@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from dataset import DatasetGenerator
+from dataset import DatasetGenerator, FillnaTypes
 
 if __name__ == '__main__':
     data_path = 'data/olb_msa_full.csv'
@@ -42,12 +42,11 @@ if __name__ == '__main__':
                                          columns_to_drop=['displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'], cast_values=False)
+                                         columns_to_forecast=['Rn_olb'], cast_values=False,
+                                         fill_na_type=FillnaTypes.SIMPLE, remove_not_known=True)
 
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
-
-
 
     # unfold del dataset composto da (len(df['Rn_olb'])-30-1, 30, 12) elementi
     # in questo modo, rn conterrà len(df['Rn_olb']) valori, che corrispondono alle
@@ -55,8 +54,8 @@ if __name__ == '__main__':
     # è un modo per passare da dataset alla colonna del dataframe
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
-    rn = DatasetGenerator.get_ts_from_ds(X,y, -1)
-    rn_test = DatasetGenerator.get_ts_from_ds(X_test,y_test, -1)
+    rn = DatasetGenerator.get_ts_from_ds(X, y, -1)
+    rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -1)
     # prendo i valori del radon per Olibano
     df['date'] = pd.to_datetime(df['date'])
     x_vals = df['date'].dt.strftime("%d-%m-%y").values
@@ -86,7 +85,7 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(20, 6), dpi=80)
     # stampo i valori
-    plt.plot(x_vals, rn)
+    plt.plot(rn)
     # stampo la retta verticale che divide il dataset all'80%
     plt.axvline(x=x_thr_val, color='y')
     # stampo i puntini sui valori che superano la soglia
@@ -97,8 +96,6 @@ if __name__ == '__main__':
 
     plt.figure(figsize=(20, 6), dpi=80)
     # stampo i valori di test
-    plt.plot(rn_test)    # stampo la retta orizzontale y = thr
-    plt.plot( np.ones(len(rn_test))*thr, '-b')
+    plt.scatter(range(len(rn_test)),rn_test)  # stampo la retta orizzontale y = thr
+    plt.plot(np.ones(len(rn_test)) * thr, '-b')
     plt.show()
-
-

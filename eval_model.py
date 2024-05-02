@@ -1,10 +1,10 @@
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+from math import floor, ceil
 from scipy.stats import pearsonr
 
-from data_generator import BaseDataset
-from dataset import DatasetGenerator
+from dataset import DatasetGenerator, FillnaTypes
 from model import LSTMRegressor
 
 
@@ -47,16 +47,19 @@ def plot_example_pred(generator, regressor):
 """
 
 
-def eval_pearsonsr(regressor, generator, y_true):
-    y_preds = regressor.model.predict(generator)
+def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
+    y_true = y_true.reshape(y_true.shape[0], )
     scaled_y_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
-
-    # wtr = np.where(scaled_y_true > 120000)[0]
-    # scaled_y_true = np.delete(scaled_y_true, wtr)
-    # scaled_y_preds = np.delete(scaled_y_preds, wtr)
-    #for z in zip(scaled_y_true, scaled_y_preds):
-    #    print(f'true: {z[0]} ; pred: {z[1]}')
+    if remove_outliers:
+        wtr_y = np.where(scaled_y_true >= 100000)[0]
+        scaled_y_true = np.delete(scaled_y_true, wtr_y)
+        scaled_y_preds = np.delete(scaled_y_preds, wtr_y)
+        # for z in zip(scaled_y_true, scaled_y_preds):
+        #    print(f'true: {z[0]} ; pred: {z[1]}')
+        wtr_x = np.where(scaled_y_preds >= 100000)[0]
+        scaled_y_true = np.delete(scaled_y_true, wtr_x)
+        scaled_y_preds = np.delete(scaled_y_preds, wtr_x)
 
     corr, _ = pearsonr(y_true, y_preds.reshape(-1))
     print('Pearsons correlation: %.3f' % corr)
@@ -70,36 +73,43 @@ def eval_pearsonsr(regressor, generator, y_true):
     plt.show()
 
 
-def eval(lstm_model_name = 'lstm_mae_model_with_valid_bs32'):
+def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
-    dataset = BaseDataset(data_path='dataset')
-    train_filenames, test_filenames = dataset.load_data(shuffle=False)
-    # divido i dati e creo i generators
-    train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
+    data_path = 'data/olb_msa_full.csv'
+    base_path = 'dataset/'
+    encoders = 'encoders/'
+    scalers = 'scalers/'
+    seq_len_x = 30
+    seq_len_y = 1
 
-    # devo estrarre le y dai generators
-    y_true = []
-    for y in test_generator:
-        y_true.extend(y[1][:, 0, 0])
-    y_true = np.array(y_true)
+    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
+               'background seismicity']
 
-    y_preds = lstm_regressor.model.predict(test_generator)
+    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
+                                         encoders=encoders, scaler_path=scalers)
 
-    print('lstm eval')
-    lstm_regressor.evaluate_model(y_pred = y_preds, y_true= y_true)
+    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+                                         columns_to_drop=['date', 'displacement (cm)',
+                                                          'background seismicity', 'T_msa',
+                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
+                                         columns_to_forecast=['Rn_olb'], cast_values=False,
+                                         fill_na_type=FillnaTypes.SIMPLE, remove_not_known=True)
+
+    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
+    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
+
+    y_preds = lstm_regressor.model.predict(X_test)
 
     scaler = joblib.load('scalers/Rn_olb_scaler.save')
-
-    # comparo i valori reali con i predetti
-
-    vals = compare_scaled_values(lstm_regressor, test_generator, y_true)
 
     diffs = []
     scaled_y_true = []
     scaled_y_preds = []
-    for v in vals:
+    for v in zip(scale_preds(y_test.reshape(y_test.shape[0]), scaler_path='scalers/Rn_olb_scaler.save'),
+                 scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')):
         diffs.append(np.abs(v[0] - v[1]))
         scaled_y_true.append(v[0])
         scaled_y_preds.append(v[1])
@@ -110,55 +120,10 @@ def eval(lstm_model_name = 'lstm_mae_model_with_valid_bs32'):
 
     print(np.mean(diffs), np.min(diffs), np.max(diffs))
 
-    mean_p = np.where(np.abs(scaled_y_true - scaled_y_preds) >= np.mean(diffs))
-    inv_mean_p = np.where(np.abs(scaled_y_true - scaled_y_preds) < np.mean(diffs))
+    eval_pearsonsr(y_preds, y_test)
 
-    v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
-    v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
-    plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
-    plt.scatter(scaled_y_preds[mean_p], scaled_y_true[mean_p], color='red')
-    plt.scatter(scaled_y_preds[inv_mean_p], scaled_y_true[inv_mean_p], color='green')
-    plt.show()
-
-    x_vals = list(range(len(scaled_y_preds)))
-    print(len(scaled_y_preds[mean_p]), len(scaled_y_preds[inv_mean_p]))
-
-    thr_vals = scaled_y_true.copy().astype(float)
-    thr_vals[inv_mean_p] = np.nan
-
-    ok_vals = scaled_y_true.copy().astype(float)
-    ok_vals[mean_p] = np.nan
-    plt.plot(x_vals, scaled_y_true, color='black')
-    # plt.scatter(x_vals, ok_vals, marker='x', color='green')
-    plt.scatter(x_vals, thr_vals, marker='x', color='red')
-    plt.show()
-
-    # disegno 30 step della serie e mostro la predizione
-    # plot_example_pred(test_generator, lstm_regressor)
-
-    eval_pearsonsr(lstm_regressor, test_generator, y_true)
-
-    # plot real vs forecast
-    X = []
-    y = []
-    for x in test_generator:
-        X.extend(x[0])
-        y.extend(x[1])
-
-    rn = DatasetGenerator.get_ts_from_ds(np.array(X), np.array(y), target_col=-1)
-    plt.figure(figsize=(20,6), dpi=80)
-    plt.plot(rn)
-    plt.show()
-
-    # plot train set
-    X = []
-    y = []
-    for x in train_generator:
-        X.extend(x[0])
-        y.extend(x[1])
-
-    rn = DatasetGenerator.get_ts_from_ds(np.array(X), np.array(y), target_col=-1)
-    plt.figure(figsize=(20,6), dpi=80)
+    rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -1)
+    plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
 
@@ -168,5 +133,15 @@ def eval(lstm_model_name = 'lstm_mae_model_with_valid_bs32'):
     plt.show()
 
 
+def eval_all_models(models):
+    for idx, m in enumerate(models):
+        print(f'\n\n\nModello numero {idx} : {m}')
+        eval(m.split('.keras')[0])
+
+
 if __name__ == '__main__':
-    eval()
+    # models = os.listdir((os.getcwd()) + '/saved_model')
+    model = 'lstm_mse_model_with_valid_bs64_Adam_lr0.001'
+    eval(model)
+    # eval_all_models(models)
+    # eval()

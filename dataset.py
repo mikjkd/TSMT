@@ -87,12 +87,14 @@ class DatasetGenerator:
         return df
 
     def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
-                    end_date=None, cast_values=True, remove_not_known=False):
+                    end_date=None, cast_values=True, remove_not_known=False,
+                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
         # merge dataset
-        df = self.generate_frame(start_date=start_date, end_date=end_date, fill_na_type=FillnaTypes.MEAN)
+        df = self.generate_frame(start_date=start_date, end_date=end_date,
+                                 fill_na_type=fill_na_type)
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
@@ -200,13 +202,11 @@ def generate_dataset():
                                          columns_to_drop=['date', 'displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'])
+                                         columns_to_forecast=['Rn_olb'],
+                                         fill_na_type=FillnaTypes.MEAN)
     # divisione train e test
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
-
-    # augmenting del training set
-    #aX, aY = dataset_generator.augment(X_train[:, :, 1:], y_train, mean=0, variance=0.001, num_replies=3)
 
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')
