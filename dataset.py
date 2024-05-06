@@ -69,8 +69,7 @@ class DatasetGenerator:
             frame.reset_index(inplace=True, drop=True)
         return frame
 
-    def generate_frame(self, start_date=None, end_date=None, fill_na=True,
-                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
+    def generate_frame(self, start_date=None, end_date=None):
         df = pd.read_csv(self.data_path)
         df.columns = self.columns
 
@@ -79,11 +78,7 @@ class DatasetGenerator:
 
         if end_date:
             df = df[df['date'] <= end_date]
-        if fill_na:
-            if fill_na_type == FillnaTypes.SIMPLE:
-                df = df.fillna(0)
-            elif fill_na_type == FillnaTypes.MEAN:
-                df = fill_na_mean(df, self.columns)
+
         return df
 
     def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
@@ -93,8 +88,23 @@ class DatasetGenerator:
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
         # merge dataset
-        df = self.generate_frame(start_date=start_date, end_date=end_date,
-                                 fill_na_type=fill_na_type)
+        df = self.generate_frame(start_date=start_date, end_date=end_date)
+
+        ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
+        # valori NA
+        # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
+        # knowing the fact that we need to fill, a good way is to add a column to the df, saying that a specific value
+        # has been filled with another value. That helps in post processing part
+
+        # Adding the flag to the NAs columns
+        na_cols = np.isnan(df[columns_to_forecast[0]].values)
+        df = df.assign(na_cols=na_cols)
+
+        if fill_na_type == FillnaTypes.SIMPLE:
+            df = df.fillna(0)
+        elif fill_na_type == FillnaTypes.MEAN:
+            df = fill_na_mean(df, self.columns)
+
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(df, columns_to_scale=columns_to_scale, scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
@@ -102,9 +112,9 @@ class DatasetGenerator:
         print(frame_drop.columns)
         # creo le sequenze per la rete
         if cast_values:
-            X, Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+            X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
         else:
-            X, Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
+            X, Y, ind_X, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
 
         ctfs = [list(frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
         Y = Y[:, :, ctfs]
@@ -116,7 +126,10 @@ class DatasetGenerator:
         # per questo si rimuove da Y, di conseguenza, poi vengono tolti anche quegli input che portano
         # ad un forecast di uno 0
         if remove_not_known:
-            rp = np.where(Y == 0)[0]
+            # na_cols[ind_Y.reshape(ind_Y.shape[0],)] mi restituisce le colonne di na solo nei punti in cui esiste l'output y
+            # scrivendo np.where(na_cols[ind_Y.reshape(ind_Y.shape[0],)] == True) prendo solo i valori in cui
+            # l'output y era NA ed è stato refillato
+            rp = np.where(na_cols[ind_Y.reshape(ind_Y.shape[0])] == True)[0]
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
 
@@ -203,7 +216,7 @@ def generate_dataset():
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=FillnaTypes.MEAN)
+                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
     # divisione train e test
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
@@ -211,7 +224,6 @@ def generate_dataset():
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')
     dataset_generator.save_XY(X_test, y_test, base_path, 'test')
-
 
 if __name__ == '__main__':
     generate_dataset()

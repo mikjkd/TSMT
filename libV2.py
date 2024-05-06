@@ -231,8 +231,10 @@ def accuracy(pred, labels):
 
 
 # split a univariate sequence into samples
+# restituisco anche gli indici di come vengono paginati i dati
 def split_sequence(sequence, n_steps, n_steps_y=1):
     X, y = list(), list()
+    ind_X, ind_Y = list(), list()
     for i in range(len(sequence)):
         # find the end of this pattern
         end_ix = i + n_steps
@@ -244,7 +246,10 @@ def split_sequence(sequence, n_steps, n_steps_y=1):
         # print(seq_x,seq_y)
         X.append(seq_x)
         y.append(seq_y)
-    return np.array(X), np.array(y)
+        ind_X.append(range(i, end_ix))
+        ind_Y.append(range(end_ix, end_ix + n_steps_y))
+
+    return np.array(X), np.array(y), np.array(ind_X), np.array(ind_Y)
 
 
 def generate_dataset(seq, scaler):
@@ -255,7 +260,7 @@ def generate_dataset(seq, scaler):
     scaler = scaler.fit(seq.reshape(-1, 1))
     standardized = scaler.transform(seq.reshape(-1, 1))
     standardized = standardized.reshape(standardized.shape[0])
-    X, y = split_sequence(standardized, 28)
+    X, y, _, __ = split_sequence(standardized, 28)
     X_train, y_train = X[:int(len(X) * 0.95)], y[:int(len(y) * 0.95)]
     X_test, y_test = X[-int(len(X) * 0.05):], y[-int(len(y) * 0.05):]
     return (X_train, y_train), (X_test, y_test)
@@ -480,7 +485,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
     standardized = scaler.transform(seq.reshape(-1, 1))
     frame['orders_completed'] = standardized
     seq = frame.values.astype('float64')
-    X, y = split_sequence(seq, seq_len)
+    X, y,_,__ = split_sequence(seq, seq_len)
     y = y[:, 0]
     if isShuffled:
         ind_list = [i for i in range(X.shape[0])]
@@ -513,7 +518,7 @@ def standardScale(frame, pos):
 
 
 def get_XY_fromseq(seq, seq_len, train_perc=0.95, isShuffled=True):
-    X, y = split_sequence(seq, seq_len)
+    X, y, _, __ = split_sequence(seq, seq_len)
     y = y[:, 0]
     if isShuffled:
         ind_list = [i for i in range(X.shape[0])]

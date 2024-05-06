@@ -73,7 +73,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     plt.show()
 
 
-def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
+def eval(lstm_model_name='lstm_mse_model_with_valid_bs64'):
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
@@ -95,7 +95,7 @@ def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=FillnaTypes.MEAN)
+                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
 
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
 
@@ -120,7 +120,7 @@ def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
 
     eval_pearsonsr(y_preds, y_test)
 
-    rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -1)
+    rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
@@ -139,7 +139,7 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     # models = os.listdir((os.getcwd()) + '/saved_model')
-    model = 'lstm_mse_model_with_valid_bs64_Adam_lr0.001'
+    model = 'lstm_mse_model_with_valid_bs64'
     eval(model)
     # eval_all_models(models)
     # eval()

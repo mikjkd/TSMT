@@ -33,7 +33,7 @@ class ModelTrainer:
         workers = 0 if not is_multiprocessing else config['workers']
         model.compile(loss=loss, optimizer=optimizer, metrics=loss)
 
-        plot_model(model)
+        #plot_model(model)
         model.summary()
         es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=60)
         mc = ModelCheckpoint(f'saved_model/{model_name}.keras', monitor='val_loss', mode='min',
@@ -49,7 +49,7 @@ class ModelTrainer:
 
         return history
 
-    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.0001), loss='mae', epochs=512):
+    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.0001), loss='mse', epochs=512):
         config = {
             'model': model,
             'model_name': model_name,
@@ -142,7 +142,7 @@ if __name__ == '__main__':  # model
     # dataset
     dataset = BaseDataset(data_path='dataset')
     # trainer
-    trainer = ModelTrainer(batch_size=32)
+    trainer = ModelTrainer(batch_size=64)
 
     # carico i dati, li divido e creo i generators
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
@@ -152,7 +152,7 @@ if __name__ == '__main__':  # model
                                                                                         valid_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
-    lstm_model_name = 'lstm_mae_model_with_valid_bs32'
+    lstm_model_name = 'lstm_mse_model_with_valid_bs64'
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.generate_model(input_shape, output_shape)
 

@@ -37,13 +37,13 @@ if __name__ == '__main__':
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    df = dataset_generator.generate_frame(fill_na=False)
+    df = dataset_generator.generate_frame()
     X, y = dataset_generator.generate_XY(columns_to_scale=[],
                                          columns_to_drop=['displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'], cast_values=False,
-                                         fill_na_type=FillnaTypes.SIMPLE, remove_not_known=True)
+                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=True)
 
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
@@ -54,8 +54,8 @@ if __name__ == '__main__':
     # è un modo per passare da dataset alla colonna del dataframe
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
-    rn = DatasetGenerator.get_ts_from_ds(X, y, -1)
-    rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -1)
+    rn = DatasetGenerator.get_ts_from_ds(X, y, -2)
+    rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     # prendo i valori del radon per Olibano
     df['date'] = pd.to_datetime(df['date'])
     x_vals = df['date'].dt.strftime("%d-%m-%y").values
