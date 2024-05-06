@@ -78,7 +78,6 @@ def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
     lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
 
     data_path = 'data/olb_msa_full.csv'
-    base_path = 'dataset/'
     encoders = 'encoders/'
     scalers = 'scalers/'
     seq_len_x = 30
@@ -95,10 +94,9 @@ def eval(lstm_model_name='lstm_mae_model_with_valid_bs32'):
                                          columns_to_drop=['date', 'displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'], cast_values=False,
-                                         fill_na_type=FillnaTypes.SIMPLE, remove_not_known=True)
+                                         columns_to_forecast=['Rn_olb'],
+                                         fill_na_type=FillnaTypes.MEAN)
 
-    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
 
     y_preds = lstm_regressor.model.predict(X_test)
