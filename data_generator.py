@@ -86,6 +86,14 @@ class BaseDataset:
         output_shape = (elem[1].shape[-1])
         return train_generator, test_generator, input_shape, output_shape
 
+    @staticmethod
+    def generator_to_Xy(generator):
+        X, y = [], []
+        for elem in generator:
+            X.extend(elem[0])
+            y.extend(elem[1])
+        return np.array(X), np.array(y)
+
 
 class KFoldDataset(BaseDataset):
     def __init__(self, data_path):

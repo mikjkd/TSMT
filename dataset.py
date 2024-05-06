@@ -19,6 +19,14 @@ class ScalerTypes(Enum):
 class FillnaTypes(Enum):
     SIMPLE = 'simple'
     MEAN = 'mean'
+    @staticmethod
+    def from_string(s):
+        if s == 'SIMPLE':
+            return FillnaTypes.SIMPLE
+        elif s == 'MEAN':
+            return FillnaTypes.MEAN
+        else:
+            return FillnaTypes.SIMPLE
 
 
 class DatasetGenerator:
@@ -184,7 +192,7 @@ class DatasetGenerator:
         return rn
 
 
-def generate_dataset():
+def generate_dataset(seq_len_x=30, seq_len_y=1, fill_na_type: FillnaTypes = FillnaTypes.MEAN, remove_not_known=False):
     data_path = 'data/olb_msa_full.csv'
     base_path = 'dataset/'
     encoders = 'encoders/'
@@ -202,9 +210,6 @@ def generate_dataset():
         os.mkdir(scalers)
         print(f'{scalers} creata')
 
-    seq_len_x = 30
-    seq_len_y = 1
-
     columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
                'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
                'background seismicity']
@@ -216,7 +221,7 @@ def generate_dataset():
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
+                                         fill_na_type=fill_na_type, remove_not_known=remove_not_known)
     # divisione train e test
     X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
     X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
@@ -224,6 +229,7 @@ def generate_dataset():
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')
     dataset_generator.save_XY(X_test, y_test, base_path, 'test')
+
 
 if __name__ == '__main__':
     generate_dataset()

@@ -1,0 +1,43 @@
+- hyperparameters:
+    window_in: 30
+    window_out: 1
+    optimizer: Adam
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 256
+    loss: mse
+  missing_value_strategy: "SIMPLE"
+  remove_unknown_values: false
+
+- hyperparameters:
+    window_in: 30
+    window_out: 1
+    optimizer: Adam
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 256
+    loss: mse
+  missing_value_strategy: "SIMPLE"
+  remove_unknown_values: true
+
+- hyperparameters:
+    window_in: 30
+    window_out: 1
+    optimizer: Adam
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 256
+    loss: mse
+  missing_value_strategy: "MEAN"
+  remove_unknown_values: false
+
+- hyperparameters:
+    window_in: 30
+    window_out: 1
+    optimizer: Adam
+    learning_rate: 0.001
+    batch_size: 32
+    epochs: 256
+    loss: mse
+  missing_value_strategy: "MEAN"
+  remove_unknown_values: true

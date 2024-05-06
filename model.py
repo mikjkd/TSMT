@@ -35,7 +35,7 @@ class ModelTrainer:
 
         #plot_model(model)
         model.summary()
-        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=60)
+        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
         mc = ModelCheckpoint(f'saved_model/{model_name}.keras', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)

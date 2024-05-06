@@ -4,6 +4,7 @@ import numpy as np
 from math import floor, ceil
 from scipy.stats import pearsonr
 
+from data_generator import BaseDataset
 from dataset import DatasetGenerator, FillnaTypes
 from model import LSTMRegressor
 
@@ -66,43 +67,30 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     scaled_corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
     print('Pearsons correlation on scaled vals: %.3f' % scaled_corr)
 
-    v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
-    v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
-    plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
-    plt.scatter(scaled_y_preds, scaled_y_true)
-    plt.show()
+    return corr, scaled_corr
+
+    # v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
+    # v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
+    # plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
+    # plt.scatter(scaled_y_preds, scaled_y_true)
+    # plt.show()
 
 
 def eval(lstm_model_name='lstm_mse_model_with_valid_bs64'):
-    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
-    lstm_regressor.load_model(f'saved_model/{lstm_model_name}.keras')
+    regressor = LSTMRegressor(model_name=lstm_model_name)
+    regressor.load_model(f'saved_model/{lstm_model_name}.keras')
+    data_path = 'dataset'
 
-    data_path = 'data/olb_msa_full.csv'
-    encoders = 'encoders/'
-    scalers = 'scalers/'
-    seq_len_x = 30
-    seq_len_y = 1
+    dataset = BaseDataset(data_path=data_path)
 
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
-               'background seismicity']
+    # carico i dati, li divido e creo i generators
+    train_filenames, test_filenames = dataset.load_data(shuffle=False)
+    # li carico già divisi, non serve più splittarli
+    _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
 
-    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
-                                         encoders=encoders, scaler_path=scalers)
-
-    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
-                                         columns_to_drop=['date', 'displacement (cm)',
-                                                          'background seismicity', 'T_msa',
-                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
-
-    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
-
-    y_preds = lstm_regressor.model.predict(X_test)
-
+    y_preds = regressor.model.predict(test_generator)
     scaler = joblib.load('scalers/Rn_olb_scaler.save')
-
+    X_test, y_test = dataset.generator_to_Xy(test_generator)
     diffs = []
     scaled_y_true = []
     scaled_y_preds = []
@@ -118,7 +106,11 @@ def eval(lstm_model_name='lstm_mse_model_with_valid_bs64'):
 
     print(np.mean(diffs), np.min(diffs), np.max(diffs))
 
-    eval_pearsonsr(y_preds, y_test)
+    # eval_model.eval(model_name)
+    lstm_y_preds = regressor.model.predict(test_generator)
+    regressor.model.evaluate(test_generator)
+
+    eval_pearsonsr(lstm_y_preds, y_test)
 
     rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     plt.figure(figsize=(20, 6), dpi=80)
@@ -138,8 +130,7 @@ def eval_all_models(models):
 
 
 if __name__ == '__main__':
-    # models = os.listdir((os.getcwd()) + '/saved_model')
-    model = 'lstm_mse_model_with_valid_bs64'
+    model = '1e644b4f'
     eval(model)
     # eval_all_models(models)
     # eval()
