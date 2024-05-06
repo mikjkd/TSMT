@@ -28,8 +28,6 @@ def generate_model_name(hyperparameters):
 if __name__ == '__main__':
     with open('init.yaml', 'r') as file:
         init_data = yaml.safe_load(file)
-    results = []
-
     # Iterate over configurations
     for config in init_data:
         hyperparameters = config['hyperparameters']

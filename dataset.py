@@ -1,3 +1,4 @@
+import csv
 import os
 import pickle as pkl
 from datetime import datetime, timedelta
@@ -9,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean
+from sklearn.model_selection import train_test_split
 
 
 class ScalerTypes(Enum):
@@ -19,6 +21,7 @@ class ScalerTypes(Enum):
 class FillnaTypes(Enum):
     SIMPLE = 'simple'
     MEAN = 'mean'
+
     @staticmethod
     def from_string(s):
         if s == 'SIMPLE':
@@ -192,11 +195,20 @@ class DatasetGenerator:
         return rn
 
 
-def generate_dataset(seq_len_x=30, seq_len_y=1, fill_na_type: FillnaTypes = FillnaTypes.MEAN, remove_not_known=False):
-    data_path = 'data/olb_msa_full.csv'
+def split_train_test_data(data_path, filename, columns, train_split=0.8):
+    df = pd.read_csv(f'{data_path}/{filename}')
+    df.columns = columns
+    train_df, test_df = train_test_split(df, test_size=1 - train_split, shuffle=False)
+    train_df.to_csv(f'{data_path}/train.csv', index=False)
+    test_df.to_csv(f'{data_path}/test.csv', index=False)
+
+
+def generate_dataset(data_path, filename, columns, seq_len_x=30, seq_len_y=1,
+                     fill_na_type: FillnaTypes = FillnaTypes.MEAN,
+                     remove_not_known=False):
     base_path = 'dataset/'
-    encoders = 'encoders/'
-    scalers = 'scalers/'
+    encoders = f'{filename}-encoders/'
+    scalers = f'{filename}-scalers/'
 
     if not os.path.exists(base_path):
         os.mkdir(base_path)
@@ -210,11 +222,7 @@ def generate_dataset(seq_len_x=30, seq_len_y=1, fill_na_type: FillnaTypes = Fill
         os.mkdir(scalers)
         print(f'{scalers} creata')
 
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
-               'background seismicity']
-
-    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
+    dataset_generator = DatasetGenerator(data_path=data_path, columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y,
                                          encoders=encoders, scaler_path=scalers)
     X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                          columns_to_drop=['date', 'displacement (cm)',
@@ -222,14 +230,15 @@ def generate_dataset(seq_len_x=30, seq_len_y=1, fill_na_type: FillnaTypes = Fill
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
                                          fill_na_type=fill_na_type, remove_not_known=remove_not_known)
-    # divisione train e test
-    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
-    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
-
     # salvataggio trainin e test set
-    dataset_generator.save_XY(X_train, y_train, base_path, 'train')
-    dataset_generator.save_XY(X_test, y_test, base_path, 'test')
+    dataset_generator.save_XY(X, y, base_path, filename)
 
 
 if __name__ == '__main__':
-    generate_dataset()
+    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
+               'background seismicity']
+    data_path = 'data'
+    split_train_test_data(data_path=data_path, filename='olb_msa_full.csv', columns=columns)
+    generate_dataset(data_path='data/train.csv', filename='train', columns=columns)
+    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, remove_not_known=True)
