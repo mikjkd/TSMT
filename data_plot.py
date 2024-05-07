@@ -2,6 +2,8 @@
 Dataset Plotting with scaling
 """
 import os
+
+import joblib
 from math import floor, ceil
 
 import matplotlib.pyplot as plt
@@ -30,21 +32,22 @@ if __name__ == '__main__':
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
     rn = DatasetGenerator.get_ts_from_ds(X_train, y_train, -2)
+    df = pd.read_csv('data/train.csv')
+    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
+    scaled_rn = scaler.inverse_transform(rn.reshape(-1,1)).reshape(-2)
+
     plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(rn)
+    plt.plot(scaled_rn, label = 'processed train dataset')
+    plt.plot(df['Rn_olb'].values, label = 'train csv')
+    plt.legend()
     plt.show()
 
     rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
+    df = pd.read_csv('data/test.csv')
+    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
+    scaled_rn_test = scaler.inverse_transform(rn_test.reshape(-1,1)).reshape(-2)
     plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(rn_test)
-    plt.show()
-
-    y = []
-    for elem in test_generator:
-        y.extend(elem[1])
-    y = np.array(y)
-    y = y.reshape(y.shape[0])
-    print(y.shape)
-    plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(y)
+    plt.plot(scaled_rn_test, label = 'processed test dataset')
+    plt.plot(df['Rn_olb'].values,  label = 'test csv')
+    plt.legend()
     plt.show()
