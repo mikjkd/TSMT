@@ -189,9 +189,8 @@ class DatasetGenerator:
 
     @staticmethod
     def get_ts_from_ds(X, y, target_col):
-        rn = X[:, 0, target_col]
-        rn = np.append(rn[:-1], X[-1, :, target_col])
-        rn = np.append(rn, y[-1])
+        rn = X[0,:, target_col]
+        rn = np.append(rn,y[:,0,0])
         return rn
 
 
@@ -241,4 +240,4 @@ if __name__ == '__main__':
     data_path = 'data'
     split_train_test_data(data_path=data_path, filename='olb_msa_full.csv', columns=columns)
     generate_dataset(data_path='data/train.csv', filename='train', columns=columns)
-    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, fill_na_type=FillnaTypes.MEAN, remove_not_known=True)
+    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
