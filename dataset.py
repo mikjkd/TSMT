@@ -154,9 +154,9 @@ class DatasetGenerator:
             fnx = f'{filename}_X_{idx}'
             fny = f'{filename}_Y_{idx}'
             filenames.append([fnx, fny])
-            with open(base_path + fnx, 'wb') as output:
+            with open(f'{base_path}/{fnx}', 'wb') as output:
                 pkl.dump(x, output)
-            with open(base_path + fny, 'wb') as output:
+            with open(f'{base_path}/{fny}', 'wb') as output:
                 pkl.dump(Y[idx], output)
         np.save(f'{base_path}/{filename}_filenames.npy', filenames)
         print('salvato')
@@ -189,8 +189,8 @@ class DatasetGenerator:
 
     @staticmethod
     def get_ts_from_ds(X, y, target_col):
-        rn = X[0,:, target_col]
-        rn = np.append(rn,y[:,0,0])
+        rn = X[0, :, target_col]
+        rn = np.append(rn, y[:, 0, 0])
         return rn
 
 
@@ -204,14 +204,13 @@ def split_train_test_data(data_path, filename, columns, train_split=0.8):
 
 def generate_dataset(data_path, filename, columns, seq_len_x=30, seq_len_y=1,
                      fill_na_type: FillnaTypes = FillnaTypes.MEAN,
-                     remove_not_known=False):
-    base_path = 'dataset/'
-    encoders = f'{filename}-encoders/'
-    scalers = f'{filename}-scalers/'
-
-    if not os.path.exists(base_path):
-        os.mkdir(base_path)
-        print(f'{base_path} creata')
+                     remove_not_known=False, base_path='/'):
+    encoders = f'{base_path}/{filename}-encoders/'
+    scalers = f'{base_path}/{filename}-scalers/'
+    dataset_path = f'{base_path}/dataset'
+    if not os.path.exists(dataset_path):
+        os.mkdir(dataset_path)
+        print(f'{dataset_path} creata')
 
     if not os.path.exists(encoders):
         os.mkdir(encoders)
@@ -230,7 +229,7 @@ def generate_dataset(data_path, filename, columns, seq_len_x=30, seq_len_y=1,
                                          columns_to_forecast=['Rn_olb'],
                                          fill_na_type=fill_na_type, remove_not_known=remove_not_known)
     # salvataggio trainin e test set
-    dataset_generator.save_XY(X, y, base_path, filename)
+    dataset_generator.save_XY(X, y, dataset_path, filename)
 
 
 if __name__ == '__main__':
@@ -239,5 +238,7 @@ if __name__ == '__main__':
                'background seismicity']
     data_path = 'data'
     split_train_test_data(data_path=data_path, filename='olb_msa_full.csv', columns=columns)
-    generate_dataset(data_path='data/train.csv', filename='train', columns=columns)
-    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
+    generate_dataset(data_path='data/train.csv', filename='train', base_path=os.getcwd(), columns=columns)
+    generate_dataset(data_path='data/test.csv', filename='test', base_path=os.getcwd(), columns=columns,
+                     fill_na_type=FillnaTypes.MEAN,
+                     remove_not_known=True)

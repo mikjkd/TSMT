@@ -7,4 +7,5 @@
     epochs: 512
     loss: mae
   missing_value_strategy: "MEAN"
-  remove_unknown_values: false
+  remove_unknown_train_values: false
+  remove_unknown_test_values: true

@@ -27,10 +27,10 @@ class CustomGenerator(keras.utils.Sequence):
         x_data = []
         y_data = []
         for x_filename in batch_x:
-            with open(self.base_path + x_filename, 'rb') as data:
+            with open(f'{self.base_path}/{x_filename}', 'rb') as data:
                 x_data.append(pkl.load(data))
         for y_filename in batch_y:
-            with open(self.base_path + y_filename, 'rb') as data:
+            with open(f'{self.base_path}/{y_filename}', 'rb') as data:
                 y_data.append(pkl.load(data))
 
         return np.array(x_data), np.array(y_data)
@@ -74,9 +74,9 @@ class BaseDataset:
 
     def generate_data(self, train_filenames, test_filenames, batch_size=32):
         # Implementazione della preparazione dei dati
-        train_generator = CustomGenerator(train_filenames, batch_size)
-        test_generator = CustomGenerator(test_filenames, batch_size, on_end_shuffle=False)
-        example_generator = CustomGenerator(train_filenames, batch_size)
+        train_generator = CustomGenerator(train_filenames, batch_size, base_path=self.data_path)
+        test_generator = CustomGenerator(test_filenames, batch_size, base_path=self.data_path, on_end_shuffle=False)
+        example_generator = CustomGenerator(train_filenames, batch_size, base_path=self.data_path)
 
         for idx, elem in enumerate(example_generator):
             if idx >= 1:

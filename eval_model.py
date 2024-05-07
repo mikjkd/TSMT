@@ -48,10 +48,10 @@ def plot_example_pred(generator, regressor):
 """
 
 
-def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
+def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outliers=False):
     y_true = y_true.reshape(y_true.shape[0], )
-    scaled_y_true = scale_preds(y_true, scaler_path='train-scalers/Rn_olb_scaler.save')
-    scaled_y_preds = scale_preds(y_preds, scaler_path='train-scalers/Rn_olb_scaler.save')
+    scaled_y_true = scale_preds(y_true, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
+    scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
     if remove_outliers:
         wtr_y = np.where(scaled_y_true >= 100000)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_y)
@@ -76,10 +76,10 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     # plt.show()
 
 
-def eval(lstm_model_name):
-    regressor = LSTMRegressor(model_name=lstm_model_name)
-    regressor.load_model(f'saved_model/{lstm_model_name}.keras')
-    data_path = 'dataset'
+def eval(model_name):
+    regressor = LSTMRegressor(model_name=model_name)
+    regressor.load_model(f'saved_model/{model_name}.keras')
+    data_path = f'datasets/{model_name}/dataset'
 
     dataset = BaseDataset(data_path=data_path)
 
@@ -87,40 +87,24 @@ def eval(lstm_model_name):
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # li carico già divisi, non serve più splittarli
     train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
-
     regressor.model.evaluate(train_generator)
-
     y_preds = regressor.model.predict(test_generator)
-    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
+    scaler_path = f'datasets/{model_name}/train-scalers'
     X_test, y_test = dataset.generator_to_Xy(test_generator)
-    diffs = []
-    scaled_y_true = []
-    scaled_y_preds = []
-    for v in zip(scale_preds(y_test.reshape(y_test.shape[0]), scaler_path='train-scalers/Rn_olb_scaler.save'),
-                 scale_preds(y_preds, scaler_path='train-scalers/Rn_olb_scaler.save')):
-        diffs.append(np.abs(v[0] - v[1]))
-        scaled_y_true.append(v[0])
-        scaled_y_preds.append(v[1])
-
-    diffs = np.array(diffs)
-    scaled_y_preds = np.array(scaled_y_preds)
-    scaled_y_true = np.array(scaled_y_true)
-
-    print(np.mean(diffs), np.min(diffs), np.max(diffs))
 
     # eval_model.eval(model_name)
     lstm_y_preds = regressor.model.predict(test_generator)
     regressor.model.evaluate(test_generator)
 
-    eval_pearsonsr(lstm_y_preds, y_test)
+    eval_pearsonsr(lstm_y_preds, y_test, scalers_path=scaler_path)
 
     rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
 
-    plt.plot(scaled_y_true, label='true')
-    plt.plot(scaled_y_preds, label='preds')
+    plt.plot(y_test.reshape(y_test.shape[0]), label='true')
+    plt.plot(y_preds, label='preds')
     plt.legend()
     plt.show()
 
