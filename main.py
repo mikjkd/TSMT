@@ -28,6 +28,10 @@ def generate_model_name(hyperparameters):
 if __name__ == '__main__':
     with open('init.yaml', 'r') as file:
         init_data = yaml.safe_load(file)
+    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
+               'background seismicity']
+
     # Iterate over configurations
     for config in init_data:
         hyperparameters = config['hyperparameters']
@@ -35,10 +39,10 @@ if __name__ == '__main__':
         remove_unknown_values = config['remove_unknown_values']
         window_in = hyperparameters['window_in']
         window_out = hyperparameters['window_out']
-        generate_dataset(seq_len_x=window_in, seq_len_y=window_out,
+        generate_dataset(columns=columns, data_path='data/train.csv', filename='train', seq_len_x=window_in,
+                         seq_len_y=window_out,
                          fill_na_type=FillnaTypes.from_string(missing_value_strategy),
-                         remove_not_known=remove_unknown_values
-                         )
+                         remove_not_known=remove_unknown_values)
 
         # X_train, X_test, y_train, y_test = load_data()
         data_path = 'dataset'
@@ -51,9 +55,9 @@ if __name__ == '__main__':
         # trainer
         trainer = ModelTrainer(batch_size=batch_size)
         # carico i dati, li divido e creo i generators
-        train_filenames, test_filenames = dataset.load_data(shuffle=False)
+        train_filenames, test_filenames = dataset.load_data(shuffle=True)
         # li carico già divisi, non serve più splittarli
-        train_filenames, valid_filenames = dataset.split_train_valid(train_filenames, shuffle=True)
+        train_filenames, valid_filenames = dataset.split_train_valid(train_filenames, shuffle=False)
         train_generator, valid_generator, input_shape, output_shape = dataset.generate_data(train_filenames,
                                                                                             valid_filenames)
 
@@ -72,7 +76,6 @@ if __name__ == '__main__':
             epochs=epochs,
             loss=loss
         )
-
 
         _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
         lstm_y_preds = regressor.model.predict(test_generator)

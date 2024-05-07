@@ -8,45 +8,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from data_generator import BaseDataset
 from dataset import DatasetGenerator, FillnaTypes
 
 if __name__ == '__main__':
-    data_path = 'data/olb_msa_full.csv'
-    base_path = 'dataset/'
-    encoders = 'encoders/'
-    scalers = 'scalers/'
-
-    if not os.path.exists(base_path):
-        os.mkdir(base_path)
-        print(f'{base_path} creata')
-
-    if not os.path.exists(encoders):
-        os.mkdir(encoders)
-        print(f'{encoders} creata')
-
-    if not os.path.exists(scalers):
-        os.mkdir(scalers)
-        print(f'{scalers} creata')
-
-    seq_len_x = 30
-    seq_len_y = 1
-
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
-               'background seismicity']
-
-    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
-                                         encoders=encoders, scaler_path=scalers)
-    df = dataset_generator.generate_frame()
-    X, y = dataset_generator.generate_XY(columns_to_scale=[],
-                                         columns_to_drop=['displacement (cm)',
-                                                          'background seismicity', 'T_msa',
-                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'], cast_values=False,
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=True)
-
-    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
-    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
+    data_path = 'dataset'
+    # dataset
+    dataset = BaseDataset(data_path=data_path)
+    # carico i dati, li divido e creo i generators
+    train_filenames, test_filenames = dataset.load_data(shuffle=False)
+    # li carico già divisi, non serve più splittarli
+    train_generator, test_generator, _, __ = dataset.generate_data(train_filenames, test_filenames)
+    # ottengo X_train,y_train ed X_test, y_test
+    X_train, y_train = dataset.generator_to_Xy(train_generator)
+    X_test, y_test = dataset.generator_to_Xy(test_generator)
 
     # unfold del dataset composto da (len(df['Rn_olb'])-30-1, 30, 12) elementi
     # in questo modo, rn conterrà len(df['Rn_olb']) valori, che corrispondono alle
@@ -54,48 +29,22 @@ if __name__ == '__main__':
     # è un modo per passare da dataset alla colonna del dataframe
     # questo metodo è stato implementato in DatasetGenerator come
     # get_ts_from_ds()
-    rn = DatasetGenerator.get_ts_from_ds(X, y, -2)
+    rn = DatasetGenerator.get_ts_from_ds(X_train, y_train, -2)
+    plt.figure(figsize=(20, 6), dpi=80)
+    plt.plot(rn)
+    plt.show()
+
     rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
-    # prendo i valori del radon per Olibano
-    df['date'] = pd.to_datetime(df['date'])
-    x_vals = df['date'].dt.strftime("%d-%m-%y").values
-    y_vals = df['Rn_olb'].values
     plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(x_vals, y_vals)
-    plt.show()
-    plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(rn)
+    plt.plot(rn_test)
     plt.show()
 
-    # definisco la threshold sopra la quale plottare i puntini
-    thr = 140000
-
-    t_points = np.where(y_vals < thr)
-    y_t = y_vals.copy()
-    # creo un vettore di lunghezza y_vals, che ha nan sui valori
-    # che sono sotto thr e hanno il valore reale per gli altri
-    y_t[t_points] = np.nan
-
-    # creo la retta y = thr
-    thr_vals = np.ones(len(y_vals))
-    thr_vals = thr * thr_vals
-
-    # trovo il punto x che indica l'80% del dataset
-    x_thr_val = len(y_vals) * 0.8
-
+    y = []
+    for elem in test_generator:
+        y.extend(elem[1])
+    y = np.array(y)
+    y = y.reshape(y.shape[0])
+    print(y.shape)
     plt.figure(figsize=(20, 6), dpi=80)
-    # stampo i valori
-    plt.plot(rn)
-    # stampo la retta verticale che divide il dataset all'80%
-    plt.axvline(x=x_thr_val, color='y')
-    # stampo i puntini sui valori che superano la soglia
-    plt.scatter(x_vals, y_t)
-    # stampo la retta orizzontale y = thr
-    plt.plot(x_vals, thr_vals, '-b')
-    plt.show()
-
-    plt.figure(figsize=(20, 6), dpi=80)
-    # stampo i valori di test
-    plt.scatter(range(len(rn_test)),rn_test)  # stampo la retta orizzontale y = thr
-    plt.plot(np.ones(len(rn_test)) * thr, '-b')
+    plt.plot(y)
     plt.show()

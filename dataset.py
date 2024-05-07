@@ -241,4 +241,4 @@ if __name__ == '__main__':
     data_path = 'data'
     split_train_test_data(data_path=data_path, filename='olb_msa_full.csv', columns=columns)
     generate_dataset(data_path='data/train.csv', filename='train', columns=columns)
-    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, remove_not_known=True)
+    generate_dataset(data_path='data/test.csv', filename='test', columns=columns, fill_na_type=FillnaTypes.MEAN, remove_not_known=True)

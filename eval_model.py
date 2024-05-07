@@ -50,8 +50,8 @@ def plot_example_pred(generator, regressor):
 
 def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     y_true = y_true.reshape(y_true.shape[0], )
-    scaled_y_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
-    scaled_y_preds = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
+    scaled_y_true = scale_preds(y_true, scaler_path='train-scalers/Rn_olb_scaler.save')
+    scaled_y_preds = scale_preds(y_preds, scaler_path='train-scalers/Rn_olb_scaler.save')
     if remove_outliers:
         wtr_y = np.where(scaled_y_true >= 100000)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_y)
@@ -76,7 +76,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     # plt.show()
 
 
-def eval(lstm_model_name='lstm_mse_model_with_valid_bs64'):
+def eval(lstm_model_name):
     regressor = LSTMRegressor(model_name=lstm_model_name)
     regressor.load_model(f'saved_model/{lstm_model_name}.keras')
     data_path = 'dataset'
@@ -86,16 +86,18 @@ def eval(lstm_model_name='lstm_mse_model_with_valid_bs64'):
     # carico i dati, li divido e creo i generators
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # li carico già divisi, non serve più splittarli
-    _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
+    train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
+
+    regressor.model.evaluate(train_generator)
 
     y_preds = regressor.model.predict(test_generator)
-    scaler = joblib.load('scalers/Rn_olb_scaler.save')
+    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
     X_test, y_test = dataset.generator_to_Xy(test_generator)
     diffs = []
     scaled_y_true = []
     scaled_y_preds = []
-    for v in zip(scale_preds(y_test.reshape(y_test.shape[0]), scaler_path='scalers/Rn_olb_scaler.save'),
-                 scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')):
+    for v in zip(scale_preds(y_test.reshape(y_test.shape[0]), scaler_path='train-scalers/Rn_olb_scaler.save'),
+                 scale_preds(y_preds, scaler_path='train-scalers/Rn_olb_scaler.save')):
         diffs.append(np.abs(v[0] - v[1]))
         scaled_y_true.append(v[0])
         scaled_y_preds.append(v[1])
@@ -130,7 +132,7 @@ def eval_all_models(models):
 
 
 if __name__ == '__main__':
-    model = '1e644b4f'
+    model = '5cfca51e'
     eval(model)
     # eval_all_models(models)
     # eval()
