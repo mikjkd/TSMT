@@ -1,19 +1,18 @@
+import os
 from typing import Optional
 
 import joblib
 import keras
 import matplotlib.pyplot as plt
 import numpy as np
-from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks import History
-from keras.layers import LSTM, Dense
 from keras.losses import mean_squared_error, mean_absolute_error
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
-import os
 
 from data_generator import BaseDataset
+from models_repo.LSTMRegressor import LSTMRegressor
 
 
 class ModelTrainer:
@@ -110,32 +109,12 @@ class RegressorModel:
         pass
 
 
-class LinearRegressor(RegressorModel):
-    def __init__(self, model_name):
-        super().__init__(model_name)
-
-    def generate_model(self, input_shape, output_shape):
-        model = keras.Sequential()
-        # Aggiungi un layer Flatten per linearizzare il tensore
-        model.add(keras.layers.Flatten(input_shape=input_shape))
-        # Aggiungi il layer Dense successivo
-        model.add(keras.layers.Dense(units=output_shape))  # specifica il numero di unità del layer Dense
-        self.model = model
 
 
 # carico dati
 
 
-class LSTMRegressor(RegressorModel):
-    def __init__(self, model_name):
-        super().__init__(model_name)
 
-    def generate_model(self, input_shape, output_shape):
-        input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=128, return_sequences=False)(input1)
-        out = Dense(output_shape)(l1)
-        self.model = Model(inputs=input1, outputs=out)
-        # return self.model
 
 
 if __name__ == '__main__':  # model

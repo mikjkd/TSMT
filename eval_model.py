@@ -7,7 +7,7 @@ from scipy.stats import pearsonr
 
 from data_generator import BaseDataset
 from dataset import DatasetGenerator
-from model import LSTMRegressor
+from model import RegressorModel
 
 
 def scale_preds(preds, scaler_path):
@@ -78,7 +78,8 @@ def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outlier
 
 
 def eval(model_name):
-    regressor = LSTMRegressor(model_name=model_name)
+    # non c'è bisogno di usare la classe corretta, basta usare la classe base
+    regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
     data_path = f'datasets/{model_name}/dataset'
 
@@ -118,6 +119,6 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = 'c482810b'
+    model = 'db18ecff'
     eval(model)
     # eval()

@@ -10,7 +10,7 @@ from data_generator import BaseDataset
 from dataset import DatasetGenerator
 
 if __name__ == '__main__':
-    data_path = 'dataset'
+    data_path = 'datasets/db18ecff/dataset'
     # dataset
     dataset = BaseDataset(data_path=data_path)
     # carico i dati, li divido e creo i generators
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # get_ts_from_ds()
     rn = DatasetGenerator.get_ts_from_ds(X_train, y_train, -2)
     df = pd.read_csv('data/train.csv')
-    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
+    scaler = joblib.load('datasets/db18ecff/train-scalers/Rn_olb_scaler.save')
     scaled_rn = scaler.inverse_transform(rn.reshape(-1,1)).reshape(-2)
 
     plt.figure(figsize=(20, 6), dpi=80)
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     rn_test = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     df = pd.read_csv('data/test.csv')
-    scaler = joblib.load('train-scalers/Rn_olb_scaler.save')
+    scaler = joblib.load('datasets/db18ecff/train-scalers/Rn_olb_scaler.save')
     scaled_rn_test = scaler.inverse_transform(rn_test.reshape(-1,1)).reshape(-2)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(scaled_rn_test, label = 'processed test dataset')

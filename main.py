@@ -11,7 +11,8 @@ import eval_model
 from data_generator import BaseDataset
 from dataset import generate_dataset, FillnaTypes
 # from dataset import generate_dataset
-from model import ModelTrainer, LSTMRegressor
+from model import ModelTrainer
+from models_repo.LSTMRegressor import LSTMRegressor2L
 
 
 def generate_model_name(hyperparameters, num_try =0):
@@ -45,7 +46,7 @@ if __name__ == '__main__':
         learning_rate = hyperparameters['learning_rate']
         loss = hyperparameters['loss']
         epochs = hyperparameters['epochs']
-        for num_try in range(5):
+        for num_try in range(1):
 
 
             model_name = generate_model_name(hyperparameters, num_try)
@@ -93,7 +94,7 @@ if __name__ == '__main__':
                                                                                                 valid_filenames)
 
             # genero il modello a che prende in considerazione input ed output shape
-            regressor = LSTMRegressor(model_name=model_name)
+            regressor = LSTMRegressor2L(model_name=model_name)
             regressor.generate_model(input_shape, output_shape)
 
             # alleno il modello
