@@ -1,17 +1,13 @@
 """
 Dataset Plotting with scaling
 """
-import os
 
 import joblib
-from math import floor, ceil
-
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 
 from data_generator import BaseDataset
-from dataset import DatasetGenerator, FillnaTypes
+from dataset import DatasetGenerator
 
 if __name__ == '__main__':
     data_path = 'dataset'

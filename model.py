@@ -11,7 +11,7 @@ from keras.layers import LSTM, Dense
 from keras.losses import mean_squared_error, mean_absolute_error
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
-from keras.utils import plot_model
+import os
 
 from data_generator import BaseDataset
 
@@ -36,7 +36,7 @@ class ModelTrainer:
         #plot_model(model)
         model.summary()
         es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
-        mc = ModelCheckpoint(f'saved_model/{model_name}.keras', monitor='val_loss', mode='min',
+        mc = ModelCheckpoint(f'saved_model/{model_name}.x', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
         history = model.fit(x=train,
@@ -139,6 +139,7 @@ class LSTMRegressor(RegressorModel):
 
 
 if __name__ == '__main__':  # model
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
     # dataset
     dataset = BaseDataset(data_path='dataset')
     # trainer
@@ -152,7 +153,7 @@ if __name__ == '__main__':  # model
                                                                                         valid_filenames)
 
     # genero il modello a che prende in considerazione input ed output shape
-    lstm_model_name = 'lstm_mse_model_with_valid_bs64'
+    lstm_model_name = 'prova'
     lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
     lstm_regressor.generate_model(input_shape, output_shape)
 

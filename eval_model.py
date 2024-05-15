@@ -1,11 +1,12 @@
+import os
+
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
-from math import floor, ceil
 from scipy.stats import pearsonr
 
 from data_generator import BaseDataset
-from dataset import DatasetGenerator, FillnaTypes
+from dataset import DatasetGenerator
 from model import LSTMRegressor
 
 
@@ -78,7 +79,7 @@ def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outlier
 
 def eval(model_name):
     regressor = LSTMRegressor(model_name=model_name)
-    regressor.load_model(f'saved_model/{model_name}.keras')
+    regressor.load_model(f'saved_model/{model_name}.x')
     data_path = f'datasets/{model_name}/dataset'
 
     dataset = BaseDataset(data_path=data_path)
@@ -112,11 +113,11 @@ def eval(model_name):
 def eval_all_models(models):
     for idx, m in enumerate(models):
         print(f'\n\n\nModello numero {idx} : {m}')
-        eval(m.split('.keras')[0])
+        eval(m.split('.x')[0])
 
 
 if __name__ == '__main__':
-    model = '5cfca51e'
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    model = 'c482810b'
     eval(model)
-    # eval_all_models(models)
     # eval()
