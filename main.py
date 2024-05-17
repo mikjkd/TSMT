@@ -47,8 +47,6 @@ if __name__ == '__main__':
         loss = hyperparameters['loss']
         epochs = hyperparameters['epochs']
         for num_try in range(1):
-
-
             model_name = generate_model_name(hyperparameters, num_try)
 
             # genero dataset in una cartella dedicata al modello.

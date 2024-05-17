@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 
 import joblib
@@ -10,9 +9,6 @@ from keras.callbacks import History
 from keras.losses import mean_squared_error, mean_absolute_error
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
-
-from data_generator import BaseDataset
-from models_repo.LSTMRegressor import LSTMRegressor
 
 
 class ModelTrainer:
@@ -115,8 +111,7 @@ class RegressorModel:
 
 
 
-
-
+"""
 if __name__ == '__main__':  # model
     os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
     # dataset
@@ -148,3 +143,4 @@ if __name__ == '__main__':  # model
     lstm_y_preds = lstm_regressor.model.predict(test_generator)
     lstm_regressor.model.evaluate(test_generator)
     # return lstm_regressor
+"""

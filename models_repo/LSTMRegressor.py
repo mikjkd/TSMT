@@ -23,9 +23,8 @@ class LSTMRegressor2L(RegressorModel):
 
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
-        l1 = LSTM(units=128, return_sequences=True)(input1)
-        l2 = LSTM(units=128, return_sequences=False)(l1)
-        l3 = Dense(units=32)(l2)
-        out = Dense(output_shape)(l3)
+        l1 = LSTM(units=64, return_sequences=True)(input1)
+        l2 = LSTM(units=64, return_sequences=False)(l1)
+        out = Dense(output_shape)(l2)
         self.model = Model(inputs=input1, outputs=out)
         # return self.model

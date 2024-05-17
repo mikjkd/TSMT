@@ -90,6 +90,7 @@ class DatasetGenerator:
 
         return df
 
+    # @TODO: Implementare generate_XY come una pipe di sklearn = > X, Y = pipe.fit_transform(data)
     def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
                     end_date=None, cast_values=True, remove_not_known=False,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE, scaler_names=None):
