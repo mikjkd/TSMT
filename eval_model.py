@@ -16,8 +16,8 @@ def scale_preds(preds, scaler_path):
     scaled_preds = []
     for p in preds:
         scaled_preds.append(scaler.inverse_transform(p.reshape(-1, 1)))
-    scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
-    return np.array(scaled_preds)
+    #scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
+    return np.array(scaled_preds).reshape(len(scaled_preds))
 
 
 def compare_scaled_values(regressor, generator, y_true):
@@ -54,12 +54,13 @@ def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outlier
     scaled_y_true = scale_preds(y_true, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
     if remove_outliers:
-        wtr_y = np.where(scaled_y_true >= 100000)[0]
+        out_thr = 40000
+        wtr_y = np.where(scaled_y_true >= out_thr)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_y)
         scaled_y_preds = np.delete(scaled_y_preds, wtr_y)
         # for z in zip(scaled_y_true, scaled_y_preds):
         #    print(f'true: {z[0]} ; pred: {z[1]}')
-        wtr_x = np.where(scaled_y_preds >= 100000)[0]
+        wtr_x = np.where(scaled_y_preds >= out_thr)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_x)
         scaled_y_preds = np.delete(scaled_y_preds, wtr_x)
 
@@ -68,13 +69,13 @@ def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outlier
     scaled_corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
     print('Pearsons correlation on scaled vals: %.3f' % scaled_corr)
 
-    return corr, scaled_corr
 
-    # v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
-    # v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
-    # plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
-    # plt.scatter(scaled_y_preds, scaled_y_true)
-    # plt.show()
+    v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
+    v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
+    plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
+    plt.scatter(scaled_y_preds, scaled_y_true)
+    plt.show()
+    return corr, scaled_corr
 
 
 def eval(model_name):
@@ -98,15 +99,19 @@ def eval(model_name):
     lstm_y_preds = regressor.model.predict(test_generator)
     regressor.model.evaluate(test_generator)
 
-    eval_pearsonsr(lstm_y_preds, y_test, scalers_path=scaler_path)
+    eval_pearsonsr(lstm_y_preds, y_test, scalers_path=scaler_path, remove_outliers=True)
+
+    y_true = y_test.reshape(y_test.shape[0], )
+    scaled_y_true = scale_preds(y_true, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
+    scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
 
     rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
 
-    plt.plot(y_test.reshape(y_test.shape[0]), label='true')
-    plt.plot(y_preds, label='preds')
+    plt.plot(scaled_y_true, label='true')
+    plt.plot(scaled_y_preds, label='preds')
     plt.legend()
     plt.show()
 
@@ -119,6 +124,6 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = 'db18ecff'
+    model = 'b80519f3'
     eval(model)
     # eval()

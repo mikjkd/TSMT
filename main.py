@@ -26,7 +26,7 @@ def generate_model_name(hyperparameters, num_try =0):
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3,4,5"
 
     with open('init.yaml', 'r') as file:
         init_data = yaml.safe_load(file)
