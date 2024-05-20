@@ -342,19 +342,27 @@ def fill_na_mean(df, target_columns: List):
             zero_pos = frame[np.isnan(frame[c].values)].index
             for zp in zero_pos:
                 # primo valore precedente allo zero
-                v0 = 0
-                v1 = 0
+                v0 = np.mean(frame[c])
+                v1 = v0
                 if zp > 0:
                     # prendo l'ultimo valore diverso da nan prima della posizione dello zero
-                    v0 = frame[:zp].values[~np.isnan(frame[c].values[:zp])][-1, idx]
+                    try:
+                        v0 = frame[:zp].values[~np.isnan(frame[c].values[:zp])][-1, idx]
+                    except:
+                        pass
                 # primo valore successivo allo zero
                 if zp < len(df):
                     # prendo il primo valore diverso da nan dopo la posizione dello zero
-                    v1 = frame[zp:].values[~np.isnan(frame[c].values[zp:])][0, idx]
+                    try:
+                        v1 = frame[zp:].values[~np.isnan(frame[c].values[zp:])][0, idx]
+                    except:
+                        pass
                 frame.at[zp, c] = (v0 + v1) / 2
-        except:
+        except Exception as e:
+            print(f'{c}: {e}')
             pass
     return frame
+
 
 
 def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):

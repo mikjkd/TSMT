@@ -7,6 +7,7 @@ import numpy as np
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks import History
 from keras.losses import mean_squared_error, mean_absolute_error
+from keras.src.callbacks import ReduceLROnPlateau
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
 
@@ -30,21 +31,23 @@ class ModelTrainer:
 
         #plot_model(model)
         model.summary()
-        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=120)
+        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
         mc = ModelCheckpoint(f'saved_model/{model_name}.x', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=30, min_lr=0.00001)
+
         history = model.fit(x=train,
                             steps_per_epoch=int(len_train // self.batch_size),
                             validation_data=test,
                             validation_steps=int(len_test // self.batch_size),
                             epochs=epochs,
-                            callbacks=[mc, es]
+                            callbacks=[mc, es, reduce_lr]
                             )
 
         return history
 
-    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.0001), loss='mse', epochs=512):
+    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.001), loss='mse', epochs=512):
         config = {
             'model': model,
             'model_name': model_name,

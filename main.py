@@ -2,6 +2,7 @@ import errno
 import hashlib
 import os.path
 import random
+import string
 
 import pandas as pd
 import yaml
@@ -15,9 +16,12 @@ from model import ModelTrainer
 from models_repo.LSTMRegressor import LSTMRegressor2L, LSTMRegressor
 
 
-def generate_model_name(hyperparameters, num_try =0):
+def generate_model_name():
     # Convert hyperparameters to a string
-    hyperparameters_str = str(hyperparameters) + str(random.random())+ str(num_try)
+    letters = string.ascii_lowercase  # Use lowercase letters
+    hyperparameters = ''.join(random.choice(letters) for i in range(20))
+
+    hyperparameters_str = str(hyperparameters) + str(random.randint(1, 1000))
     # Generate SHA-256 hash
     hash_object = hashlib.sha256(hyperparameters_str.encode())
     model_name = hash_object.hexdigest()[:8]  # Take first 8 characters for readability
@@ -47,7 +51,7 @@ if __name__ == '__main__':
         loss = hyperparameters['loss']
         epochs = hyperparameters['epochs']
         for num_try in range(1):
-            model_name = generate_model_name(hyperparameters, num_try)
+            model_name = generate_model_name()
 
             # genero dataset in una cartella dedicata al modello.
             dataset_path = f'{os.getcwd()}/datasets/{model_name}/'
@@ -59,7 +63,7 @@ if __name__ == '__main__':
                 else:
                     exit()
             # genero training set
-            base_path= f'datasets/{model_name}'
+            base_path = f'datasets/{model_name}'
 
             generate_dataset(columns=columns, data_path='data/train.csv', base_path=f'datasets/{model_name}',
                              filename='train',

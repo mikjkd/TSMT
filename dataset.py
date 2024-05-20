@@ -128,7 +128,7 @@ class DatasetGenerator:
 
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(frame, scaler_names=scaler_names, columns_to_scale=columns_to_scale,
-                              scalerType=ScalerTypes.STD)
+                              scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
         print(frame_drop.columns)
@@ -199,9 +199,9 @@ class DatasetGenerator:
     """
 
     @staticmethod
-    def get_ts_from_ds(X, y, target_col):
+    def get_ts_from_ds(X, target_col):
         rn = X[0, :, target_col]
-        rn = np.append(rn, y[:, 0, 0])
+        rn = np.append(rn, X[1:, -1, target_col])
         return rn
 
 
@@ -272,4 +272,4 @@ if __name__ == '__main__':
     generate_dataset(data_path='data/train.csv', filename='train', base_path=os.getcwd(), columns=columns)
     generate_dataset(data_path='data/test.csv', filename='test', base_path=os.getcwd(), columns=columns,
                      fill_na_type=FillnaTypes.MEAN,
-                     remove_not_known=True, scaler_path=f'{base_path}/train-scalers/')
+                     remove_not_known=False, scaler_path=f'{base_path}/train-scalers/')

@@ -35,7 +35,7 @@ if __name__ == '__main__':
         riempio i buchi con fill_na_mean 
         faccio questa operazione per confrontare poi i dati X,y inversamente scalati, con i dati reali
         
-    """
+    
     full_df = pd.read_csv(f'{data_path}/olb_msa_full.csv')
     full_df.columns = columns
     filled_df = fill_na_mean(full_df,columns)
@@ -74,3 +74,11 @@ if __name__ == '__main__':
     plt.plot(full_df['Rn_olb'].values[floor(len(full_df)*0.8):], label = 'test csv')
     plt.legend()
     plt.show()
+    """
+
+
+    for i in range(X_train.shape[2]):
+        rn = DatasetGenerator.get_ts_from_ds(X_test, i)
+        plt.figure(figsize=(20, 6), dpi=80)
+        plt.plot(rn)
+        plt.show()
