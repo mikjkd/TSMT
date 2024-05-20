@@ -12,7 +12,7 @@ from data_generator import BaseDataset
 from dataset import generate_dataset, FillnaTypes
 # from dataset import generate_dataset
 from model import ModelTrainer
-from models_repo.LSTMRegressor import LSTMRegressor2L
+from models_repo.LSTMRegressor import LSTMRegressor2L, LSTMRegressor
 
 
 def generate_model_name(hyperparameters, num_try =0):
@@ -92,7 +92,7 @@ if __name__ == '__main__':
                                                                                                 valid_filenames)
 
             # genero il modello a che prende in considerazione input ed output shape
-            regressor = LSTMRegressor2L(model_name=model_name)
+            regressor = LSTMRegressor(model_name=model_name)
             regressor.generate_model(input_shape, output_shape)
 
             # alleno il modello

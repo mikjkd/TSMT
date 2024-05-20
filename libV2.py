@@ -357,6 +357,42 @@ def fill_na_mean(df, target_columns: List):
     return frame
 
 
+def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):
+    y_curr = a * y_prec + x_curr - x_prec
+    return y_curr
+
+
+def apply_filter(x, y, a, filter):
+    for n in range(1, len(x)):
+        y[n] = filter(y[n - 1], x[n], x[n - 1], a)
+    return y
+
+
+"""
+Filtro a spillo IIR.
+Il filtro si può applicare solo quando non ci sono più valroi NAN, quini bisogna prima utilizzare
+una strategia di imputing.
+
+Il parametro filters deve essere una lista di filtri, come il seguente 
+    filters = [IIR_highpass, ...]
+    
+"""
+
+
+def IIR(df, target_columns: List, filters: List):
+    frame = df.copy()
+    # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
+    for idx, c in enumerate(target_columns):
+        try:
+            name = f'filtered_{c}'
+            x = frame[c].values
+            y = np.zeros(len(x))
+            frame[name] = apply_filter(x, y, 0.8, filters[idx])
+        except:
+            pass
+    return frame
+
+
 def preprocess_ds(frame, refill_zero=False, drop_zero=False, isMultipleTS=True, setIsCap=True, setIsWeekend=True,
                   withCoupons=True, oheCity=False, oheTs=True, oheMonth=True, oheYear=True, oheMicro=True,
                   dropColumns=True, withMicro=False, oheFiles=None,
@@ -485,7 +521,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
     standardized = scaler.transform(seq.reshape(-1, 1))
     frame['orders_completed'] = standardized
     seq = frame.values.astype('float64')
-    X, y,_,__ = split_sequence(seq, seq_len)
+    X, y, _, __ = split_sequence(seq, seq_len)
     y = y[:, 0]
     if isShuffled:
         ind_list = [i for i in range(X.shape[0])]
