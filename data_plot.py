@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
 
     for i in range(X_train.shape[2]):
-        rn = DatasetGenerator.get_ts_from_ds(X_test, i)
+        rn = DatasetGenerator.get_ts_from_ds(X_train, i)
         plt.figure(figsize=(20, 6), dpi=80)
         plt.plot(rn)
         plt.show()

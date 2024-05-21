@@ -116,7 +116,7 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
 
         # Filtro IIR
-        columns_to_filter = ['RSAM', 'Rn_olb']
+        columns_to_filter = ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
         filters = [IIR_highpass for i in range(len(columns_to_filter))]
         frame = IIR(df, target_columns=columns_to_filter, filters=filters)
         filtered_names = []
@@ -128,7 +128,7 @@ class DatasetGenerator:
 
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(frame, scaler_names=scaler_names, columns_to_scale=columns_to_scale,
-                              scalerType=ScalerTypes.MINMAX)
+                              scalerType=ScalerTypes.STD)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
         print(frame_drop.columns)
@@ -272,4 +272,4 @@ if __name__ == '__main__':
     generate_dataset(data_path='data/train.csv', filename='train', base_path=os.getcwd(), columns=columns)
     generate_dataset(data_path='data/test.csv', filename='test', base_path=os.getcwd(), columns=columns,
                      fill_na_type=FillnaTypes.MEAN,
-                     remove_not_known=False, scaler_path=f'{base_path}/train-scalers/')
+                     remove_not_known=True, scaler_path=f'{base_path}/train-scalers/')
