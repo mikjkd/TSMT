@@ -49,10 +49,10 @@ def plot_example_pred(generator, regressor):
 """
 
 
-def eval_pearsonsr(y_preds, y_true, scalers_path='train-scalers', remove_outliers=False):
+def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     y_true = y_true.reshape(y_true.shape[0], )
-    scaled_y_true = scale_preds(y_true, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
-    scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scalers_path}/Rn_olb_scaler.save')
+    scaled_y_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
+    scaled_y_preds = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
     if remove_outliers:
         out_thr = 40000
         wtr_y = np.where(scaled_y_true >= out_thr)[0]
@@ -82,7 +82,7 @@ def eval(model_name):
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
     regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
-    data_path = f'datasets/{model_name}/dataset'
+    data_path = f'dataset'
 
     dataset = BaseDataset(data_path=data_path)
 
@@ -92,20 +92,20 @@ def eval(model_name):
     train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
     regressor.model.evaluate(train_generator)
     y_preds = regressor.model.predict(test_generator)
-    scaler_path = f'datasets/{model_name}/train-scalers'
+    scaler_path = f'scalers'
     X_test, y_test = dataset.generator_to_Xy(test_generator)
 
     # eval_model.eval(model_name)
     lstm_y_preds = regressor.model.predict(test_generator)
     regressor.model.evaluate(test_generator)
 
-    eval_pearsonsr(lstm_y_preds, y_test, scalers_path=scaler_path, remove_outliers=True)
+    eval_pearsonsr(lstm_y_preds, y_test, remove_outliers=False)
 
     y_true = y_test.reshape(y_test.shape[0], )
     scaled_y_true = scale_preds(y_true, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
 
-    rn = DatasetGenerator.get_ts_from_ds(X_test, y_test, -2)
+    rn = DatasetGenerator.get_ts_from_ds(X_test, -2)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
@@ -124,6 +124,6 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = 'b80519f3'
+    model = '2a88aa0e'
     eval(model)
     # eval()

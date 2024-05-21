@@ -6,6 +6,7 @@ from enum import Enum
 import joblib
 import numpy as np
 import pandas as pd
+from math import floor, ceil
 from sklearn.model_selection import train_test_split
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR_highpass, IIR
@@ -93,7 +94,7 @@ class DatasetGenerator:
     # @TODO: Implementare generate_XY come una pipe di sklearn = > X, Y = pipe.fit_transform(data)
     def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
                     end_date=None, cast_values=True, remove_not_known=False,
-                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE, scaler_names=None):
+                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
@@ -116,7 +117,7 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
 
         # Filtro IIR
-        columns_to_filter = ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
+        columns_to_filter =[]# ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
         filters = [IIR_highpass for i in range(len(columns_to_filter))]
         frame = IIR(df, target_columns=columns_to_filter, filters=filters)
         filtered_names = []
@@ -127,8 +128,8 @@ class DatasetGenerator:
         frame.drop(columns=filtered_names, inplace=True)
 
         # scalo le features e rimuovo quelle inutili
-        frame = self.scale_df(frame, scaler_names=scaler_names, columns_to_scale=columns_to_scale,
-                              scalerType=ScalerTypes.STD)
+        frame = self.scale_df(frame,  columns_to_scale=columns_to_scale,
+                              scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
         print(frame_drop.columns)
@@ -205,71 +206,46 @@ class DatasetGenerator:
         return rn
 
 
-def split_train_test_data(data_path, filename, columns, train_split=0.8):
-    df = pd.read_csv(f'{data_path}/{filename}')
-    df.columns = columns
-    train_df, test_df = train_test_split(df, test_size=1 - train_split, shuffle=False)
-    train_df.to_csv(f'{data_path}/train.csv', index=False)
-    test_df.to_csv(f'{data_path}/test.csv', index=False)
+def generate_dataset():
+    data_path = 'data/olb_msa_full.csv'
+    base_path = 'dataset/'
+    encoders = 'encoders/'
+    scalers = 'scalers/'
 
-
-"""
-    base_path = path in cui si va a lavorare
-    data_path = path nel quale si trovano i dati csv originali
-    filename = nome con il quale viene creato il nuovo dataset (train, test)
-    seq_len = lunghezza della sequenza di ingresso (seq_len_x) e sequenza di uscita (seq_len_y)
-    scaler_path = path in cui il modello può trovare tutti gli scalers
-    scaler_names = nomi degli scalers da utilizzare, per ogni colonna da scalare 
-    
-"""
-
-
-def generate_dataset(data_path, filename, columns, seq_len_x=30, seq_len_y=1,
-                     fill_na_type: FillnaTypes = FillnaTypes.MEAN,
-                     remove_not_known=False, base_path='/', scaler_path=None):
-    columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
-
-    encoders = f'{base_path}/{filename}-encoders/'
-    if not scaler_path:
-        scaler_path = f'{base_path}/{filename}-scalers/'
-        scaler_names = None
-    else:
-        # scaler_path lo passo da fuori
-        scaler_names = [f'{scaler_path}/{cts}_scaler.save' for cts in columns_to_scale]
-    dataset_path = f'{base_path}/dataset'
-    if not os.path.exists(dataset_path):
-        os.mkdir(dataset_path)
-        print(f'{dataset_path} creata')
+    if not os.path.exists(base_path):
+        os.mkdir(base_path)
+        print(f'{base_path} creata')
 
     if not os.path.exists(encoders):
         os.mkdir(encoders)
         print(f'{encoders} creata')
 
-    if not os.path.exists(scaler_path):
-        os.mkdir(scaler_path)
-        print(f'{scaler_path} creata')
+    if not os.path.exists(scalers):
+        os.mkdir(scalers)
+        print(f'{scalers} creata')
 
-    dataset_generator = DatasetGenerator(data_path=data_path, columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y,
-                                         encoders=encoders, scaler_path=scaler_path)
-    X, y = dataset_generator.generate_XY(columns_to_scale=columns_to_scale,
+    seq_len_x = 30
+    seq_len_y = 1
+
+    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
+               'background seismicity']
+
+    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
+                                         encoders=encoders, scaler_path=scalers)
+    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                          columns_to_drop=['date', 'displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=fill_na_type, remove_not_known=remove_not_known,
-                                         scaler_names=scaler_names)
-    # salvataggio trainin e test set
-    dataset_generator.save_XY(X, y, dataset_path, filename)
+                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
+    # divisione train e test
+    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
+    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
 
+    # salvataggio trainin e test set
+    dataset_generator.save_XY(X_train, y_train, base_path, 'train')
+    dataset_generator.save_XY(X_test, y_test, base_path, 'test')
 
 if __name__ == '__main__':
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
-               'background seismicity']
-    data_path = 'data'
-    split_train_test_data(data_path=data_path, filename='olb_msa_full.csv', columns=columns)
-    base_path = os.getcwd()
-    generate_dataset(data_path='data/train.csv', filename='train', base_path=os.getcwd(), columns=columns)
-    generate_dataset(data_path='data/test.csv', filename='test', base_path=os.getcwd(), columns=columns,
-                     fill_na_type=FillnaTypes.MEAN,
-                     remove_not_known=True, scaler_path=f'{base_path}/train-scalers/')
+    generate_dataset()

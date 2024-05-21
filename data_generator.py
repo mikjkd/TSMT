@@ -74,9 +74,9 @@ class BaseDataset:
 
     def generate_data(self, train_filenames, test_filenames, batch_size=32):
         # Implementazione della preparazione dei dati
-        train_generator = CustomGenerator(train_filenames, batch_size, base_path=self.data_path)
-        test_generator = CustomGenerator(test_filenames, batch_size, base_path=self.data_path, on_end_shuffle=False)
-        example_generator = CustomGenerator(train_filenames, batch_size, base_path=self.data_path)
+        train_generator = CustomGenerator(train_filenames, batch_size)
+        test_generator = CustomGenerator(test_filenames, batch_size, on_end_shuffle=False)
+        example_generator = CustomGenerator(train_filenames, batch_size)
 
         for idx, elem in enumerate(example_generator):
             if idx >= 1:
