@@ -7,7 +7,6 @@ import joblib
 import numpy as np
 import pandas as pd
 from math import floor, ceil
-from sklearn.model_selection import train_test_split
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR_highpass, IIR
 

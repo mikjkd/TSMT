@@ -12,7 +12,7 @@ class LSTMRegressor(RegressorModel):
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
         l1 = LSTM(units=64, return_sequences=False)(input1)
-        out = Dense(output_shape)(l1)
+        out = Dense(output_shape, activation='relu')(l1)
         self.model = Model(inputs=input1, outputs=out)
         # return self.model
 

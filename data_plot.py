@@ -75,10 +75,14 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
     """
+    scaler_names = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
 
-
+    scalers= [joblib.load(f'scalers/{s}_scaler.save') for s in scaler_names]
     for i in range(X_train.shape[2]):
         rn = DatasetGenerator.get_ts_from_ds(X_train, i)
-        plt.figure(figsize=(20, 6), dpi=80)
-        plt.plot(rn)
+        rn_scaled = scalers[i].inverse_transform(rn.reshape(-1, 1)).reshape(len(rn))
+        fig, axs = plt.subplots(2,figsize=(20, 6))
+        axs[0].plot(rn)
+        axs[1].plot(rn_scaled)
         plt.show()
+

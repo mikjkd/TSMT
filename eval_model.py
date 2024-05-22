@@ -50,10 +50,11 @@ def plot_example_pred(generator, regressor):
 
 
 def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
-    y_true = y_true.reshape(y_true.shape[0], )
+    y_true = y_true.reshape(-1)
+    y_preds = y_preds.reshape(-1)
     scaled_y_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
-    if remove_outliers:
+    """if remove_outliers:
         out_thr = 40000
         wtr_y = np.where(scaled_y_true >= out_thr)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_y)
@@ -63,11 +64,9 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
         wtr_x = np.where(scaled_y_preds >= out_thr)[0]
         scaled_y_true = np.delete(scaled_y_true, wtr_x)
         scaled_y_preds = np.delete(scaled_y_preds, wtr_x)
-
-    corr, _ = pearsonr(y_true, y_preds.reshape(-1))
+    """
+    corr, _ = pearsonr(y_true, y_preds)
     print('Pearsons correlation: %.3f' % corr)
-    scaled_corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
-    print('Pearsons correlation on scaled vals: %.3f' % scaled_corr)
 
 
     v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
@@ -75,7 +74,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
     plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
     plt.scatter(scaled_y_preds, scaled_y_true)
     plt.show()
-    return corr, scaled_corr
+    return corr
 
 
 def eval(model_name):
@@ -124,6 +123,6 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = '2a88aa0e'
+    model = '84d5ea39'
     eval(model)
     # eval()
