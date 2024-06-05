@@ -12,6 +12,7 @@ import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.models import model_from_json
+from scipy.signal import lfilter
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
@@ -364,6 +365,9 @@ def fill_na_mean(df, target_columns: List):
     return frame
 
 
+def iir_filter_operation(a,b, x_data):
+    filtered_x_data = lfilter(b, a, x_data, axis=-1)  # Apply along the last axis
+    return filtered_x_data
 
 def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):
     y_curr = a * y_prec + x_curr - x_prec
