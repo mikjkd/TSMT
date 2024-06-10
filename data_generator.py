@@ -122,9 +122,9 @@ class BaseDataset:
 
     def generate_data(self, train_filenames, test_filenames, batch_size=32, operations=[]):
         # Implementazione della preparazione dei dati
-        train_generator = CustomOpsGenerator(train_filenames, batch_size, operations=operations)
-        test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False, operations=operations)
-        example_generator = CustomOpsGenerator(train_filenames, batch_size, operations=operations)
+        train_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
+        test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False,base_path= self.data_path,  operations=operations)
+        example_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
 
         for idx, elem in enumerate(example_generator):
             if idx >= 1:
