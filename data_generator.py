@@ -1,10 +1,10 @@
 import pickle as pkl
-from typing import Optional, List
+from typing import List
 
 import keras
 import numpy as np
 
-from libV2 import apply_filter, IIR_highpass
+from libV2 import apply_filter
 
 
 class CustomGenerator(keras.utils.Sequence):
@@ -120,8 +120,10 @@ class BaseDataset:
         valid_filenames = data[int(len(data) * train_p):-1]
         return train_filenames, valid_filenames
 
-    def generate_data(self, train_filenames, test_filenames, batch_size=32, operations=[]):
+    def generate_data(self, train_filenames, test_filenames, batch_size=32, operations=None):
         # Implementazione della preparazione dei dati
+        if operations is None:
+            operations = []
         train_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
         test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False,base_path= self.data_path,  operations=operations)
         example_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
