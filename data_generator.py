@@ -47,8 +47,8 @@ class Operation:
     def __init__(self):
         pass
 
-    def apply(self, x_data, y_data):
-        return x_data, y_data
+    def apply(self, x_data, y_data, old_y):
+        return x_data, y_data, old_y
 
 
 class FilterOperation(Operation):
@@ -59,16 +59,19 @@ class FilterOperation(Operation):
         self.filter = filter
         self.forecast_col = forecast_col
 
-    def apply(self, x_data, y_data):
+    def apply(self, x_data, y_data, old_y):
         for s in range(x_data.shape[0]):
             for tg in self.target_col:
                 xi = np.append(x_data[s, :, tg], y_data[s, :, :])
                 yi = np.zeros(len(xi))
+                if old_y is not None:
+                    yi[0] = old_y[tg]
                 filtered_x = apply_filter(xi, yi, self.a, self.filter)
                 x_data[s, :, tg] = filtered_x[:-1]
                 if tg in self.forecast_col:
                     y_data[s, :, :] = filtered_x[-1]
-        return x_data, y_data
+            old_y = x_data[s,1]
+        return x_data, y_data, old_y
 
 
 class CustomOpsGenerator(CustomGenerator):
@@ -76,6 +79,7 @@ class CustomOpsGenerator(CustomGenerator):
                  operations=None):
         super().__init__(filenames, batch_size, base_path, shuffle, on_end_shuffle)
         self.operations: List[Operation] = operations if operations is not None else []
+        self.old_y = None
 
     def __getitem__(self, idx):
         x_data, y_data = super().__getitem__(idx)
@@ -84,7 +88,8 @@ class CustomOpsGenerator(CustomGenerator):
 
     def apply_operations(self, x_data, y_data):
         for operation in self.operations:
-            x_data, y_data = operation.apply(x_data, y_data)
+            x_data, y_data, old_y = operation.apply(x_data, y_data, self.old_y)
+            self.old_y = old_y
         return x_data, y_data
 
 
