@@ -14,7 +14,7 @@ class LSTMRegressor(RegressorModel):
         l1 = LSTM(units=64, return_sequences=False)(input1)
         out = Dense(output_shape, activation='relu')(l1)
         self.model = Model(inputs=input1, outputs=out)
-        # return self.model
+        return self.model
 
 
 class LSTMRegressor2L(RegressorModel):

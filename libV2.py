@@ -387,15 +387,18 @@ Il parametro filters deve essere una lista di filtri, come il seguente
 """
 
 
-def IIR(df, target_columns: List, filters: List):
+def IIR(df, target_columns: List, filters: List, inplace = False, a = 0.99):
     frame = df.copy()
     # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
     for idx, c in enumerate(target_columns):
         try:
-            name = f'filtered_{c}'
+            if inplace:
+                name = c
+            else:
+                name = f'filtered_{c}'
             x = frame[c].values
             y = np.zeros(len(x))
-            frame[name] = apply_filter(x, y, 0.8, filters[idx])
+            frame[name] = apply_filter(x, y, a, filters[idx])
         except:
             pass
     return frame
