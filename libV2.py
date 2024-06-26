@@ -366,14 +366,12 @@ def fill_na_mean(df, target_columns: List):
 
 
 def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):
-    y_curr = a * y_prec + (x_curr - x_prec)*((1+a)/2)
+    y_curr = a * y_prec + (x_curr - x_prec) * ((1 + a) / 2)
     return y_curr
 
 
-def apply_filter(x, y, a, filter):
-    for n in range(1, len(x)):
-        y[n] = filter(y[n - 1], x[n], x[n - 1], a)
-    return y
+def apply_filter(x, a, b, filter):
+    return filter(b, a, x)
 
 
 """
@@ -387,7 +385,7 @@ Il parametro filters deve essere una lista di filtri, come il seguente
 """
 
 
-def IIR(df, target_columns: List, filters: List, inplace = False, a = 0.99):
+def IIR(df, target_columns: List, filters: List, a, b, inplace=False):
     frame = df.copy()
     # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
     for idx, c in enumerate(target_columns):
@@ -397,8 +395,7 @@ def IIR(df, target_columns: List, filters: List, inplace = False, a = 0.99):
             else:
                 name = f'filtered_{c}'
             x = frame[c].values
-            y = np.zeros(len(x))
-            frame[name] = apply_filter(x, y, a, filters[idx])
+            frame[name] = apply_filter(x, a, b, filters[idx])
         except:
             pass
     return frame
@@ -634,3 +631,9 @@ def get_history_weather(lat, lon, date, timeshift):
     r = requests.get(url=URL)
     # print(r.json())
     return r
+
+
+def get_ts_from_ds(X, target_col):
+    rn = X[0, :, target_col]
+    rn = np.append(rn, X[1:, -1, target_col])
+    return rn
