@@ -1,7 +1,10 @@
 import pickle as pkl
+from typing import List
 
 import keras
 import numpy as np
+
+from libV2 import apply_filter
 
 
 class CustomGenerator(keras.utils.Sequence):
@@ -40,6 +43,56 @@ class CustomGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indices)
 
 
+class Operation:
+    def __init__(self):
+        pass
+
+    def apply(self, x_data, y_data, old_y):
+        return x_data, y_data, old_y
+
+
+class FilterOperation(Operation):
+    def __init__(self, a, target_col, forecast_col, filter):
+        super().__init__()
+        self.a = a
+        self.target_col = target_col
+        self.filter = filter
+        self.forecast_col = forecast_col
+
+    def apply(self, x_data, y_data, old_y):
+        for s in range(x_data.shape[0]):
+            for tg in self.target_col:
+                xi = np.append(x_data[s, :, tg], y_data[s, :, :])
+                yi = np.zeros(len(xi))
+                if old_y is not None:
+                    yi[0] = old_y[tg]
+                filtered_x = apply_filter(xi, yi, self.a, self.filter)
+                x_data[s, :, tg] = filtered_x[:-1]
+                if tg in self.forecast_col:
+                    y_data[s, :, :] = filtered_x[-1]
+            old_y = x_data[s,1]
+        return x_data, y_data, old_y
+
+
+class CustomOpsGenerator(CustomGenerator):
+    def __init__(self, filenames, batch_size, base_path='dataset/', shuffle=False, on_end_shuffle=True,
+                 operations=None):
+        super().__init__(filenames, batch_size, base_path, shuffle, on_end_shuffle)
+        self.operations: List[Operation] = operations if operations is not None else []
+        self.old_y = None
+
+    def __getitem__(self, idx):
+        x_data, y_data = super().__getitem__(idx)
+        x_data, y_data = self.apply_operations(x_data, y_data)
+        return x_data, y_data
+
+    def apply_operations(self, x_data, y_data):
+        for operation in self.operations:
+            x_data, y_data, old_y = operation.apply(x_data, y_data, self.old_y)
+            self.old_y = old_y
+        return x_data, y_data
+
+
 class BaseDataset:
     def __init__(self, data_path, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
         self.data_path = data_path
@@ -72,11 +125,13 @@ class BaseDataset:
         valid_filenames = data[int(len(data) * train_p):-1]
         return train_filenames, valid_filenames
 
-    def generate_data(self, train_filenames, test_filenames, batch_size=32):
+    def generate_data(self, train_filenames, test_filenames, batch_size=32, operations=None):
         # Implementazione della preparazione dei dati
-        train_generator = CustomGenerator(train_filenames, batch_size)
-        test_generator = CustomGenerator(test_filenames, batch_size, on_end_shuffle=False)
-        example_generator = CustomGenerator(train_filenames, batch_size)
+        if operations is None:
+            operations = []
+        train_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
+        test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False,base_path= self.data_path,  operations=operations)
+        example_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
 
         for idx, elem in enumerate(example_generator):
             if idx >= 1:
@@ -93,11 +148,3 @@ class BaseDataset:
             X.extend(elem[0])
             y.extend(elem[1])
         return np.array(X), np.array(y)
-
-
-class KFoldDataset(BaseDataset):
-    def __init__(self, data_path):
-        super(KFoldDataset, self).__init__(data_path)
-
-    def generate_data(self, train_filenames, test_filenames, batch_size=32, k=5):
-        pass

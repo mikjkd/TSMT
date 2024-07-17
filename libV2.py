@@ -12,6 +12,7 @@ import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.models import model_from_json
+from scipy.signal import lfilter
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
@@ -364,16 +365,13 @@ def fill_na_mean(df, target_columns: List):
     return frame
 
 
-
 def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):
-    y_curr = a * y_prec + x_curr - x_prec
+    y_curr = a * y_prec + (x_curr - x_prec) * ((1 + a) / 2)
     return y_curr
 
 
-def apply_filter(x, y, a, filter):
-    for n in range(1, len(x)):
-        y[n] = filter(y[n - 1], x[n], x[n - 1], a)
-    return y
+def apply_filter(x, a, b, filter):
+    return filter(b, a, x)
 
 
 """
@@ -387,15 +385,17 @@ Il parametro filters deve essere una lista di filtri, come il seguente
 """
 
 
-def IIR(df, target_columns: List, filters: List):
+def IIR(df, target_columns: List, filters: List, a, b, inplace=False):
     frame = df.copy()
     # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
     for idx, c in enumerate(target_columns):
         try:
-            name = f'filtered_{c}'
+            if inplace:
+                name = c
+            else:
+                name = f'filtered_{c}'
             x = frame[c].values
-            y = np.zeros(len(x))
-            frame[name] = apply_filter(x, y, 0.8, filters[idx])
+            frame[name] = apply_filter(x, a, b, filters[idx])
         except:
             pass
     return frame
@@ -545,7 +545,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
 
 def minMaxScale(frame, pos):
     seq = frame[pos].values.astype('float64')
-    scaler = MinMaxScaler()
+    scaler = MinMaxScaler(feature_range=(-1,1))
     scaler = scaler.fit(seq.reshape(-1, 1))
     minmax = scaler.transform(seq.reshape(-1, 1))
     frame[pos] = minmax
@@ -631,3 +631,9 @@ def get_history_weather(lat, lon, date, timeshift):
     r = requests.get(url=URL)
     # print(r.json())
     return r
+
+
+def get_ts_from_ds(X, target_col):
+    rn = X[0, :, target_col]
+    rn = np.append(rn, X[1:, -1, target_col])
+    return rn
