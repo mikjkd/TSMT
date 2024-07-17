@@ -49,11 +49,11 @@ def plot_example_pred(generator, regressor):
 """
 
 
-def eval_pearsonsr(y_preds, y_true, remove_outliers=False):
+def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path ='scalers/Rn_olb_scaler.save' ):
     y_true = y_true.reshape(-1)
     y_preds = y_preds.reshape(-1)
-    scaled_y_true = scale_preds(y_true, scaler_path='scalers/Rn_olb_scaler.save')
-    scaled_y_preds = scale_preds(y_preds, scaler_path='scalers/Rn_olb_scaler.save')
+    scaled_y_true = scale_preds(y_true, scaler_path=scaler_path)
+    scaled_y_preds = scale_preds(y_preds, scaler_path=scaler_path)
     """if remove_outliers:
         out_thr = 40000
         wtr_y = np.where(scaled_y_true >= out_thr)[0]

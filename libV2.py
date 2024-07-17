@@ -545,7 +545,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
 
 def minMaxScale(frame, pos):
     seq = frame[pos].values.astype('float64')
-    scaler = MinMaxScaler()
+    scaler = MinMaxScaler(feature_range=(-1,1))
     scaler = scaler.fit(seq.reshape(-1, 1))
     minmax = scaler.transform(seq.reshape(-1, 1))
     frame[pos] = minmax
