@@ -30,7 +30,7 @@ def generate_model_name():
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
     # genero il dataset
     # generate_dataset()

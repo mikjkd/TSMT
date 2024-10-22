@@ -123,6 +123,6 @@ def eval_all_models(models):
 
 if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = '84d5ea39'
+    model = 'bd713292'
     eval(model)
     # eval()

@@ -7,6 +7,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from math import floor, ceil
+from scipy.signal import butter, freqz
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR_highpass, IIR
 
@@ -116,9 +117,14 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
 
         # Filtro IIR
-        columns_to_filter =[]# ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
+        columns_to_filter = ['Rn_olb']  # ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
         filters = [IIR_highpass for i in range(len(columns_to_filter))]
-        frame = IIR(df, target_columns=columns_to_filter, filters=filters)
+        order = 1  # Order of the filter
+        cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
+
+        b, a = butter(order, cutoff, btype='low', analog=False)
+        w, h = freqz(b, a)
+        frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=True)
         filtered_names = []
         for c in columns_to_filter:
             filtered_name = f'filtered_{c}'
@@ -127,7 +133,7 @@ class DatasetGenerator:
         frame.drop(columns=filtered_names, inplace=True)
 
         # scalo le features e rimuovo quelle inutili
-        frame = self.scale_df(frame,  columns_to_scale=columns_to_scale,
+        frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
                               scalerType=ScalerTypes.MINMAX)
         frame_drop = frame.drop(columns_to_drop, axis=1)
 
@@ -245,6 +251,7 @@ def generate_dataset():
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')
     dataset_generator.save_XY(X_test, y_test, base_path, 'test')
+
 
 if __name__ == '__main__':
     generate_dataset()

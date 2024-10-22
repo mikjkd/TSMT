@@ -396,8 +396,9 @@ def IIR(df, target_columns: List, filters: List, a, b, inplace=False):
                 name = f'filtered_{c}'
             x = frame[c].values
             frame[name] = apply_filter(x, a, b, filters[idx])
-        except:
-            pass
+        except Exception as e:
+            print(e)
+            raise
     return frame
 
 
@@ -545,7 +546,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
 
 def minMaxScale(frame, pos):
     seq = frame[pos].values.astype('float64')
-    scaler = MinMaxScaler(feature_range=(-1,1))
+    scaler = MinMaxScaler(feature_range=(-1, 1))
     scaler = scaler.fit(seq.reshape(-1, 1))
     minmax = scaler.transform(seq.reshape(-1, 1))
     frame[pos] = minmax
