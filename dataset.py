@@ -6,10 +6,9 @@ from enum import Enum
 import joblib
 import numpy as np
 import pandas as pd
-from math import floor, ceil
 from scipy.signal import butter, freqz, lfilter
 
-from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR_highpass, IIR
+from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR
 
 
 class ScalerTypes(Enum):
@@ -253,8 +252,8 @@ def generate_dataset():
                                          columns_to_forecast=['Rn_olb'],
                                          fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
     # divisione train e test
-    X_train, y_train = X[:floor(len(X) * 0.8)], y[:floor(len(y) * 0.8)]
-    X_test, y_test = X[ceil(len(X) * 0.8):], y[ceil(len(y) * 0.8):]
+    X_train, y_train = X[:int(len(X) * 0.8)], y[:int(len(y) * 0.8)]
+    X_test, y_test = X[int(len(X) * 0.8):], y[int(len(y) * 0.8):]
 
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')

@@ -1,5 +1,3 @@
-import os
-
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +14,7 @@ def scale_preds(preds, scaler_path):
     scaled_preds = []
     for p in preds:
         scaled_preds.append(scaler.inverse_transform(p.reshape(-1, 1)))
-    #scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
+    # scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
     return np.array(scaled_preds).reshape(len(scaled_preds))
 
 
@@ -49,7 +47,7 @@ def plot_example_pred(generator, regressor):
 """
 
 
-def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path ='scalers/Rn_olb_scaler.save' ):
+def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/Rn_olb_scaler.save'):
     y_true = y_true.reshape(-1)
     y_preds = y_preds.reshape(-1)
     scaled_y_true = scale_preds(y_true, scaler_path=scaler_path)
@@ -67,7 +65,6 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path ='scalers
     """
     corr, _ = pearsonr(y_true, y_preds)
     print('Pearsons correlation: %.3f' % corr)
-
 
     v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
     v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
@@ -119,10 +116,3 @@ def eval_all_models(models):
     for idx, m in enumerate(models):
         print(f'\n\n\nModello numero {idx} : {m}')
         eval(m.split('.x')[0])
-
-
-if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    model = 'bd713292'
-    eval(model)
-    # eval()

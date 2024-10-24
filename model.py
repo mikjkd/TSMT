@@ -1,3 +1,6 @@
+import hashlib
+import string
+from random import random
 from typing import Optional
 
 import joblib
@@ -122,39 +125,14 @@ class RegressorModel:
         pass
 
 
-# carico dati
+def generate_model_name():
+    # Convert hyperparameters to a string
+    letters = string.ascii_lowercase  # Use lowercase letters
+    hyperparameters = ''.join(random.choice(letters) for i in range(20))
 
+    hyperparameters_str = str(hyperparameters) + str(random.randint(1, 1000))
+    # Generate SHA-256 hash
+    hash_object = hashlib.sha256(hyperparameters_str.encode())
+    model_name = hash_object.hexdigest()[:8]  # Take first 8 characters for readability
 
-"""
-if __name__ == '__main__':  # model
-    os.environ["CUDA_VISIBLE_DEVICES"] = "4,5"
-    # dataset
-    dataset = BaseDataset(data_path='dataset')
-    # trainer
-    trainer = ModelTrainer(batch_size=64)
-
-    # carico i dati, li divido e creo i generators
-    train_filenames, test_filenames = dataset.load_data(shuffle=False)
-    # li carico già divisi, non serve più splittarli
-    train_filenames, valid_filenames = dataset.split_train_valid(train_filenames, shuffle=True)
-    train_generator, valid_generator, input_shape, output_shape = dataset.generate_data(train_filenames,
-                                                                                        valid_filenames)
-
-    # genero il modello a che prende in considerazione input ed output shape
-    lstm_model_name = 'prova'
-    lstm_regressor = LSTMRegressor(model_name=lstm_model_name)
-    lstm_regressor.generate_model(input_shape, output_shape)
-
-    # alleno il modello
-    trainer.run(
-        model=lstm_regressor.model,
-        model_name=lstm_regressor.model_name,
-        train={"filenames": train_filenames, "generator": train_generator},
-        test={'filenames': valid_filenames, 'generator': valid_generator},
-    )
-
-    _, test_generator, __, ___ = dataset.generate_data(train_filenames, valid_filenames)
-    lstm_y_preds = lstm_regressor.model.predict(test_generator)
-    lstm_regressor.model.evaluate(test_generator)
-    # return lstm_regressor
-"""
+    return model_name

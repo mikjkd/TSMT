@@ -1,28 +1,10 @@
-import hashlib
-import random
-import string
-
 from keras.src.optimizers import Adam
 
 import eval_model
 from data_generator import BaseDataset
 # from dataset import generate_dataset
-from model import ModelTrainer
+from model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor
-
-
-def generate_model_name():
-    # Convert hyperparameters to a string
-    letters = string.ascii_lowercase  # Use lowercase letters
-    hyperparameters = ''.join(random.choice(letters) for i in range(20))
-
-    hyperparameters_str = str(hyperparameters) + str(random.randint(1, 1000))
-    # Generate SHA-256 hash
-    hash_object = hashlib.sha256(hyperparameters_str.encode())
-    model_name = hash_object.hexdigest()[:8]  # Take first 8 characters for readability
-
-    return model_name
-
 
 if __name__ == '__main__':
     # genero il dataset

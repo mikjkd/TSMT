@@ -111,12 +111,14 @@ class BaseDataset:
         train_data, test_data = self.__load_data(np.load(self.train_data_path), np.load(self.test_data_path), shuffle)
         return train_data, test_data
 
-    def split_train_valid(self, data, train_p=0.9, shuffle=False):
+    @staticmethod
+    def split_train_valid(data, train_p=0.9, shuffle=False):
         # Implementazione della divisione dei dati
         # train_test split
-        if type(data) is Tuple:
-            X = data['X']
-            y = data['y']
+        if type(data) is tuple:
+            print('tuple')
+            X = data[0]
+            y = data[1]
             if shuffle:
                 idx = np.arange(len(X))
                 np.random.shuffle(idx)
@@ -126,6 +128,7 @@ class BaseDataset:
             X_valid, y_valid = X[int(len(X) * train_p):], y[int(len(X) * train_p):]
             return (X_train, y_train), (X_valid, y_valid)
         else:
+            print('generators')
             if shuffle:
                 idx = np.arange(len(data))
                 np.random.shuffle(idx)
