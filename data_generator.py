@@ -1,5 +1,5 @@
 import pickle as pkl
-from typing import List
+from typing import List, Tuple
 
 import keras
 import numpy as np
@@ -70,7 +70,7 @@ class FilterOperation(Operation):
                 x_data[s, :, tg] = filtered_x[:-1]
                 if tg in self.forecast_col:
                     y_data[s, :, :] = filtered_x[-1]
-            old_y = x_data[s,1]
+            old_y = x_data[s, 1]
         return x_data, y_data, old_y
 
 
@@ -99,10 +99,7 @@ class BaseDataset:
         self.train_data_path = f'{self.data_path}/{train_data_name}'
         self.test_data_path = f'{self.data_path}/{test_data_name}'
 
-    def load_data(self, shuffle=False):
-        # Implementazione del caricamento dei dati
-        train_data = np.load(self.train_data_path)
-        test_data = np.load(self.test_data_path)
+    def __load_data(self, train_data, test_data, shuffle=False):
         # shuffle filenames
         if shuffle:
             idx = np.arange(len(train_data))
@@ -110,28 +107,45 @@ class BaseDataset:
             train_data = train_data[idx]
         return train_data, test_data
 
-    """
-        deprecato: il dataset prima era unico, attualmente è già diviso in train e test
-    """
+    def load_data(self, shuffle=False) -> Tuple[List[str], List[str]]:
+        train_data, test_data = self.__load_data(np.load(self.train_data_path), np.load(self.test_data_path), shuffle)
+        return train_data, test_data
 
     def split_train_valid(self, data, train_p=0.9, shuffle=False):
         # Implementazione della divisione dei dati
         # train_test split
-        if shuffle:
-            idx = np.arange(len(data))
-            np.random.shuffle(idx)
-            data = data[idx]
-        train_filenames = data[:int(len(data) * train_p)]
-        valid_filenames = data[int(len(data) * train_p):-1]
-        return train_filenames, valid_filenames
+        if type(data) is Tuple:
+            X = data['X']
+            y = data['y']
+            if shuffle:
+                idx = np.arange(len(X))
+                np.random.shuffle(idx)
+                X = X[idx]
+                y = y[idx]
+            X_train, y_train = X[:int(len(X) * train_p)], y[:int(len(X) * train_p)]
+            X_valid, y_valid = X[int(len(X) * train_p):], y[int(len(X) * train_p):]
+            return (X_train, y_train), (X_valid, y_valid)
+        else:
+            if shuffle:
+                idx = np.arange(len(data))
+                np.random.shuffle(idx)
+                data = data[idx]
+            train_filenames = data[:int(len(data) * train_p)]
+            valid_filenames = data[int(len(data) * train_p):-1]
+            return train_filenames, valid_filenames
+        # Implementazione della divisione dei dati
+        # train_test split
 
-    def generate_data(self, train_filenames, test_filenames, batch_size=32, operations=None):
+    def generate_data(self, train_filenames: List, test_filenames: List, batch_size=32, operations=None):
         # Implementazione della preparazione dei dati
         if operations is None:
             operations = []
-        train_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
-        test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False,base_path= self.data_path,  operations=operations)
-        example_generator = CustomOpsGenerator(train_filenames, batch_size, base_path= self.data_path, operations=operations)
+        train_generator = CustomOpsGenerator(train_filenames, batch_size, base_path=self.data_path,
+                                             operations=operations)
+        test_generator = CustomOpsGenerator(test_filenames, batch_size, on_end_shuffle=False, base_path=self.data_path,
+                                            operations=operations)
+        example_generator = CustomOpsGenerator(train_filenames, batch_size, base_path=self.data_path,
+                                               operations=operations)
 
         for idx, elem in enumerate(example_generator):
             if idx >= 1:

@@ -21,7 +21,8 @@ class ModelTrainer:
         model_name = config['model_name']
         len_train = config['len_train']
         len_test = config['len_test']
-        train, test = config['train_generator'], config['test_generator']
+        train_gen, valid_gen = config['train_generator'], config['valid_generator']
+        train, valid = config['train'], config['valid']
         optimizer = config['optimizer']
         loss = config['loss']
         epochs = config['epochs']
@@ -29,32 +30,45 @@ class ModelTrainer:
         workers = 0 if not is_multiprocessing else config['workers']
         model.compile(loss=loss, optimizer=optimizer, metrics=loss)
 
-        #plot_model(model)
+        # plot_model(model)
         model.summary()
         es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
         mc = ModelCheckpoint(f'saved_model/{model_name}.x', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
         reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=30, min_lr=0.00001)
-
-        history = model.fit(x=train,
-                            steps_per_epoch=int(len_train // self.batch_size),
-                            validation_data=test,
-                            validation_steps=int(len_test // self.batch_size),
-                            epochs=epochs,
-                            callbacks=[mc, es, reduce_lr]
-                            )
-
+        # if generator
+        if train_gen is not None and valid_gen is not None:
+            history = model.fit(x=train_gen,
+                                steps_per_epoch=int(len_train // self.batch_size),
+                                validation_data=valid_gen,
+                                validation_steps=int(len_test // self.batch_size),
+                                epochs=epochs,
+                                callbacks=[mc, es, reduce_lr]
+                                )
+        elif train is not None and valid is not None:
+            X_train, y_train = train['X'], train['y']
+            X_valid, y_valid = valid['X'], valid['y']
+            history = model.fit(x=X_train, y=y_train,
+                                validation_data=(X_valid, y_valid),
+                                batch_size=self.batch_size,
+                                epochs=epochs,
+                                callbacks=[mc, es, reduce_lr]
+                                )
+        else:
+            raise Exception('Wrong configuration on training')
         return history
 
-    def run(self, model, model_name, train, test, optimizer=Adam(learning_rate=0.001), loss='mse', epochs=512):
+    def run(self, model, model_name, train, valid, optimizer=Adam(learning_rate=0.001), loss='mse', epochs=512):
         config = {
             'model': model,
             'model_name': model_name,
             'len_train': len(train['filenames']),
-            'len_test': len(test['filenames']),
-            'train_generator': train['generator'],
-            'test_generator': test['generator'],
+            'len_test': len(valid['filenames']),
+            'train_generator': train['generator'] if 'generator' in train else None,
+            'valid_generator': valid['generator'] if 'generator' in valid else None,
+            'train': train['data'] if 'data' in train else None,
+            'valid': valid['data'] if 'data' in valid else None,
             'optimizer': optimizer,
             'loss': loss,
             'epochs': epochs,
@@ -108,10 +122,7 @@ class RegressorModel:
         pass
 
 
-
-
 # carico dati
-
 
 
 """

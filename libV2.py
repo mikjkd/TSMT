@@ -12,7 +12,6 @@ import tensorflow as tf
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.models import model_from_json
-from scipy.signal import lfilter
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
@@ -546,7 +545,7 @@ def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
 
 def minMaxScale(frame, pos):
     seq = frame[pos].values.astype('float64')
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaler = MinMaxScaler()
     scaler = scaler.fit(seq.reshape(-1, 1))
     minmax = scaler.transform(seq.reshape(-1, 1))
     frame[pos] = minmax

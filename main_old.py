@@ -1,19 +1,14 @@
-import errno
 import hashlib
-import os.path
 import random
 import string
 
-import pandas as pd
-import yaml
 from keras.src.optimizers import Adam
 
 import eval_model
 from data_generator import BaseDataset
-from dataset import generate_dataset, FillnaTypes
 # from dataset import generate_dataset
 from model import ModelTrainer
-from models_repo.LSTMRegressor import LSTMRegressor2L, LSTMRegressor
+from models_repo.LSTMRegressor import LSTMRegressor
 
 
 def generate_model_name():
@@ -30,8 +25,6 @@ def generate_model_name():
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
-
     # genero il dataset
     # generate_dataset()
 
@@ -61,7 +54,7 @@ if __name__ == '__main__':
         model=regressor.model,
         model_name=regressor.model_name,
         train={"filenames": train_filenames, "generator": train_generator},
-        test={'filenames': valid_filenames, 'generator': valid_generator},
+        valid={'filenames': valid_filenames, 'generator': valid_generator},
         optimizer=Adam(learning_rate=learning_rate),
         loss=loss
     )

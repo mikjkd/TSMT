@@ -7,7 +7,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from math import floor, ceil
-from scipy.signal import butter, freqz
+from scipy.signal import butter, freqz, lfilter
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR_highpass, IIR
 
@@ -92,14 +92,14 @@ class DatasetGenerator:
         return df
 
     # @TODO: Implementare generate_XY come una pipe di sklearn = > X, Y = pipe.fit_transform(data)
-    def generate_XY(self, columns_to_scale, columns_to_drop, columns_to_forecast, start_date=None,
-                    end_date=None, cast_values=True, remove_not_known=False,
+    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
+                    cast_values=True,
+                    remove_not_known=False,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
         # merge dataset
-        df = self.generate_frame(start_date=start_date, end_date=end_date)
 
         ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
         # valori NA
@@ -117,34 +117,41 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
 
         # Filtro IIR
-        columns_to_filter = ['Rn_olb']  # ['RSAM','Ru_olb', 'P_olb', 'Rn_olb']
-        filters = [IIR_highpass for i in range(len(columns_to_filter))]
+        filters = [lfilter for i in range(len(columns_to_filter))]
         order = 1  # Order of the filter
         cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
 
         b, a = butter(order, cutoff, btype='low', analog=False)
         w, h = freqz(b, a)
+        inplace = False
         frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=True)
-        filtered_names = []
-        for c in columns_to_filter:
-            filtered_name = f'filtered_{c}'
-            frame[c] = frame[filtered_name]
-            filtered_names.append(filtered_name)
-        frame.drop(columns=filtered_names, inplace=True)
 
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
                               scalerType=ScalerTypes.MINMAX)
-        frame_drop = frame.drop(columns_to_drop, axis=1)
 
-        print(frame_drop.columns)
         # creo le sequenze per la rete
-        if cast_values:
-            X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
-        else:
-            X, Y, ind_X, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
+        columns_to_drop.append('na_cols')
+        if inplace is False:
+            target_columns_to_drop = columns_to_drop.copy()
+            target_columns_to_drop.extend(columns_to_filter)
+        filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
+        target_frame_drop = frame.drop(columns_to_drop, axis=1)
 
-        ctfs = [list(frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
+        print(filtered_frame_drop.columns, target_frame_drop.columns)
+
+        if cast_values:
+            # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+            X, _, ind_X, _ = split_sequence(filtered_frame_drop.values.astype('float64'), self.seq_len_x,
+                                            self.seq_len_y)
+            _, Y, _, ind_Y = split_sequence(target_frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+        else:
+            # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
+            X, _, ind_X, _ = split_sequence(filtered_frame_drop.values, self.seq_len_x,
+                                            self.seq_len_y)
+            _, Y, _, ind_Y = split_sequence(target_frame_drop.values, self.seq_len_x, self.seq_len_y)
+
+        ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
         Y = Y[:, :, ctfs]
         # pagino il dataset e lo salvo nell'apposita cartella
 
@@ -238,7 +245,8 @@ def generate_dataset():
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
-    X, y = dataset_generator.generate_XY(columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
+    df = dataset_generator.generate_frame()
+    X, y = dataset_generator.generate_XY(df=df, columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                          columns_to_drop=['date', 'displacement (cm)',
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
