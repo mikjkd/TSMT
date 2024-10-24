@@ -94,7 +94,7 @@ class CustomOpsGenerator(CustomGenerator):
 
 
 class BaseDataset:
-    def __init__(self, data_path, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
+    def __init__(self, data_path = None, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
         self.data_path = data_path
         self.train_data_path = f'{self.data_path}/{train_data_name}'
         self.test_data_path = f'{self.data_path}/{test_data_name}'
@@ -134,7 +134,7 @@ class BaseDataset:
                 np.random.shuffle(idx)
                 data = data[idx]
             train_filenames = data[:int(len(data) * train_p)]
-            valid_filenames = data[int(len(data) * train_p):-1]
+            valid_filenames = data[int(len(data) * train_p):]
             return train_filenames, valid_filenames
         # Implementazione della divisione dei dati
         # train_test split

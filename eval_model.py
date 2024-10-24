@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import pearsonr
 
-from data_generator import BaseDataset
+from data_generator import BaseDataset, CustomOpsGenerator
 from dataset import DatasetGenerator
 from model import RegressorModel
 
@@ -74,29 +74,24 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/
     return corr
 
 
-def eval(model_name):
+def eval(model_name, data):
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
     regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
-    data_path = f'dataset'
-
-    dataset = BaseDataset(data_path=data_path)
-
-    # carico i dati, li divido e creo i generators
-    train_filenames, test_filenames = dataset.load_data(shuffle=False)
-    # li carico già divisi, non serve più splittarli
-    train_generator, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
-    regressor.model.evaluate(train_generator)
-    y_preds = regressor.model.predict(test_generator)
     scaler_path = f'scalers'
-    X_test, y_test = dataset.generator_to_Xy(test_generator)
+    if type(data) is CustomOpsGenerator:
+        X_test, y_test = BaseDataset.generator_to_Xy(data)
+        # eval_model.eval(model_name)
+        y_preds = regressor.model.predict(data)
+        regressor.model.evaluate(data)
 
-    # eval_model.eval(model_name)
-    lstm_y_preds = regressor.model.predict(test_generator)
-    regressor.model.evaluate(test_generator)
-
-    eval_pearsonsr(lstm_y_preds, y_test, remove_outliers=False)
-
+    elif type(data) is tuple:
+        y_preds = regressor.model.predict(data[0])
+        regressor.model.evaluate(data[0], data[1])
+        X_test, y_test = data[0], data[1]
+    else:
+        raise Exception('Wrong data type')
+    eval_pearsonsr(y_preds, y_test, remove_outliers=False)
     y_true = y_test.reshape(y_test.shape[0], )
     scaled_y_true = scale_preds(y_true, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
@@ -110,9 +105,3 @@ def eval(model_name):
     plt.plot(scaled_y_preds, label='preds')
     plt.legend()
     plt.show()
-
-
-def eval_all_models(models):
-    for idx, m in enumerate(models):
-        print(f'\n\n\nModello numero {idx} : {m}')
-        eval(m.split('.x')[0])

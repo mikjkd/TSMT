@@ -1,6 +1,6 @@
 import hashlib
+import random
 import string
-from random import random
 from typing import Optional
 
 import joblib
@@ -66,8 +66,8 @@ class ModelTrainer:
         config = {
             'model': model,
             'model_name': model_name,
-            'len_train': len(train['filenames']),
-            'len_test': len(valid['filenames']),
+            'len_train': len(train['filenames']) if 'filenames' in train else None,
+            'len_test': len(valid['filenames']) if 'filenames' in valid else None,
             'train_generator': train['generator'] if 'generator' in train else None,
             'valid_generator': valid['generator'] if 'generator' in valid else None,
             'train': train['data'] if 'data' in train else None,

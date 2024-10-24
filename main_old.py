@@ -41,8 +41,8 @@ if __name__ == '__main__':
         loss=loss
     )
 
-    _, test_generator, __, ___ = dataset.generate_data(train_filenames, valid_filenames)
+    _, test_generator, __, ___ = dataset.generate_data(train_filenames, test_filenames)
     lstm_y_preds = regressor.model.predict(test_generator)
     regressor.model.evaluate(test_generator)
 
-    eval_model.eval(model_name)
+    eval_model.eval(model_name, test_generator)
