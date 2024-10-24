@@ -9,6 +9,9 @@ class LSTMRegressor(RegressorModel):
     def __init__(self, model_name):
         super().__init__(model_name)
 
+    def description(self):
+        return 'LSTM Model with one layer (64 units) a Dense (1 linear output)'
+
     def generate_model(self, input_shape, output_shape):
         input1 = keras.Input(shape=input_shape)
         l1 = LSTM(units=64, return_sequences=False)(input1)

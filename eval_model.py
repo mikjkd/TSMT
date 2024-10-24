@@ -91,7 +91,7 @@ def eval(model_name, data):
         X_test, y_test = data[0], data[1]
     else:
         raise Exception('Wrong data type')
-    eval_pearsonsr(y_preds, y_test, remove_outliers=False)
+    pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False)
     y_true = y_test.reshape(y_test.shape[0], )
     scaled_y_true = scale_preds(y_true, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
     scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
@@ -105,3 +105,5 @@ def eval(model_name, data):
     plt.plot(scaled_y_preds, label='preds')
     plt.legend()
     plt.show()
+
+    return pearsonval
