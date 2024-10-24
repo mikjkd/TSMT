@@ -17,7 +17,7 @@ if __name__ == '__main__':
     columns_to_forecast = ['Rn_olb']
     columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     columns_to_drop = ['date', 'displacement (cm)', 'background seismicity', 'T_msa', 'Ru_msa', 'P_msa', 'Rn_msa']
-    columns_to_filter = []
+    columns_to_filter = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     seq_len_x = 30
     seq_len_y = 1
     data_path = 'data/olb_msa_full.csv'
@@ -36,6 +36,7 @@ if __name__ == '__main__':
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
+                                         columns_to_filter=columns_to_filter,
                                          fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
     # Creo train & test
     X_train, y_train = X[:int(len(X) * 0.8)], y[:int(len(y) * 0.8)]
@@ -77,15 +78,18 @@ if __name__ == '__main__':
             'model_name': model_name, 'batch_size': batch_size,
             'epochs': epochs, 'metric_type': loss,
             'result': mae, 'pearson': pearsonsval,
+            'numstep_in': seq_len_x,
+            'numstep_out': seq_len_y,
             'model_features': {
                 'model_type': 'LSTM',
                 'model_description': regressor.description()
             },
             'dataset_features': {
+                'filler_type': FillnaTypes.MEAN.value,
                 'input_columns': columns_to_scale,
                 'forecast_column': columns_to_forecast,
                 'filtered_columns': columns_to_filter,
-                'filter_type': None
+                'filter_type': 'Low'
             }
         }
         json_object = json.dumps(data, indent=4)

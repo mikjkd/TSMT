@@ -123,8 +123,11 @@ class DatasetGenerator:
         b, a = butter(order, cutoff, btype='low', analog=False)
         w, h = freqz(b, a)
         inplace = False
-        frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=True)
-
+        frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=inplace)
+        if inplace is False:
+            for ctf in columns_to_filter:
+                if ctf in columns_to_scale:
+                    columns_to_scale.append(f'filtered_{ctf}')
         # scalo le features e rimuovo quelle inutili
         frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
                               scalerType=ScalerTypes.MINMAX)
