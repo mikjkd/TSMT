@@ -2,6 +2,7 @@ import os
 import pickle as pkl
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Tuple
 
 import joblib
 import numpy as np
@@ -28,6 +29,18 @@ class FillnaTypes(Enum):
             return FillnaTypes.MEAN
         else:
             return FillnaTypes.SIMPLE
+
+
+class XYType(Enum):
+    TRAIN = 'Train'
+    TEST = 'Test'
+
+
+"""
+    DatasetGenerator Class provides a set of methods that process a DataFrame input
+    generating X,y tensors for a supervised model training.
+    !Those methods are specific for a TIME-SERIES domain.!
+"""
 
 
 class DatasetGenerator:
@@ -78,7 +91,7 @@ class DatasetGenerator:
             frame.reset_index(inplace=True, drop=True)
         return frame
 
-    def generate_frame(self, start_date=None, end_date=None):
+    def generate_frame(self, start_date=None, end_date=None) -> pd.DataFrame:
         df = pd.read_csv(self.data_path)
         df.columns = self.columns
 
@@ -90,25 +103,35 @@ class DatasetGenerator:
 
         return df
 
-    # @TODO: Implementare generate_XY come una pipe di sklearn = > X, Y = pipe.fit_transform(data)
+    """generate_XY generates the X,y tensor needed for training/testing the model. It takes as input a DataFrame 
+    object -> the original data that we want to convert into tensors; The name of the columns that have to be scaled, 
+    dropped, filtered (columns_to_scale, columns_to_drop, columns_to_filter); The values we want to learn ( 
+    columns_to_forecast) are needed in order to create a target variable (y); Since the DataFrame often has missing 
+    values (NA), a filling process is implemented, providing two ways (MEAN and SIMPLE), and it is possible to remove 
+    filled values - through remove_not_know  - from the target (y) or use them for the forecast. Finally, this method 
+    can be used in Training and Test mode: the principal difference is that when we use it in training mode, 
+    the data are scaled and the generated scelers are saved, on the other side, during the test phase we use the same 
+    scalers previously created.
+    """
+
     def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
                     cast_values=True,
                     remove_not_known=False,
-                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
+                    scaler_type=ScalerTypes.MINMAX,
+                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
+                    type: XYType = XYType.TRAIN) -> Tuple[np.array, np.array]:
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
-        # merge dataset
+        # Adding the flag to the NAs columns
+        na_cols = np.isnan(df[columns_to_forecast[0]].values)
+        df = df.assign(na_cols=na_cols)
 
         ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
         # valori NA
         # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
         # knowing the fact that we need to fill, a good way is to add a column to the df, saying that a specific value
         # has been filled with another value. That helps in post processing part
-
-        # Adding the flag to the NAs columns
-        na_cols = np.isnan(df[columns_to_forecast[0]].values)
-        df = df.assign(na_cols=na_cols)
 
         if fill_na_type == FillnaTypes.SIMPLE:
             df = df.fillna(0)
@@ -125,17 +148,27 @@ class DatasetGenerator:
         inplace = False
         frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=inplace)
         if inplace is False:
+            # Siccome ho creato nuove colonne (filtered_...), se questi valori esistono nel set da scalare
+            # allora aggiungo filtered_... in columns to scale.
             for ctf in columns_to_filter:
                 if ctf in columns_to_scale:
                     columns_to_scale.append(f'filtered_{ctf}')
         # scalo le features e rimuovo quelle inutili
-        frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
-                              scalerType=ScalerTypes.MINMAX)
+        # scalo a seconda del Training o Test mode
+        if type == XYType.TRAIN:
+            # se è training, genero gli scalers
+            frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
+                                  scalerType=scaler_type)
+        elif type == XYType.TEST:
+            # in caso di test, utilizzo gli scalers precedentemente creati
+            scaler_names = [f'scalers/{cts}_scaler.save' for cts in columns_to_scale]
+            frame = self.scale_df(frame, columns_to_scale=columns_to_scale, scaler_names=scaler_names,
+                                  scalerType=scaler_type)
 
         # creo le sequenze per la rete
         columns_to_drop.append('na_cols')
+        target_columns_to_drop = columns_to_drop.copy()
         if inplace is False:
-            target_columns_to_drop = columns_to_drop.copy()
             target_columns_to_drop.extend(columns_to_filter)
         filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
         target_frame_drop = frame.drop(columns_to_drop, axis=1)
