@@ -2,7 +2,6 @@ import os
 import pickle as pkl
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Tuple
 
 import joblib
 import numpy as np
@@ -34,6 +33,7 @@ class FillnaTypes(Enum):
 class XYType(Enum):
     TRAIN = 'Train'
     TEST = 'Test'
+    TRAINTEST = 'TrainTest'
 
 
 """
@@ -111,20 +111,26 @@ class DatasetGenerator:
     filled values - through remove_not_know  - from the target (y) or use them for the forecast. Finally, this method 
     can be used in Training and Test mode: the principal difference is that when we use it in training mode, 
     the data are scaled and the generated scelers are saved, on the other side, during the test phase we use the same 
-    scalers previously created.
+    scalers previously created, with TRAIN_TEST it is possible to call one time generate_XY and get (X_train,Y_train), 
+    (X_test,Y_test)
     """
 
-    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
-                    cast_values=True,
-                    remove_not_known=False,
-                    scaler_type=ScalerTypes.MINMAX,
-                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
-                    type: XYType = XYType.TRAIN) -> Tuple[np.array, np.array]:
+    def __generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
+                      cast_values=True,
+                      remove_not_known=False,
+                      scaler_type=ScalerTypes.MINMAX,
+                      fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
+                      type: XYType = XYType.TRAIN):
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
+        # copio le variabili altrimenti fuori dalla funzione risultano modificate e creano degli errori
+        tcts = columns_to_scale.copy()
+        tctd = columns_to_drop.copy()
+        tctf = columns_to_filter.copy()
+        tct = columns_to_forecast.copy()
         # Adding the flag to the NAs columns
-        na_cols = np.isnan(df[columns_to_forecast[0]].values)
+        na_cols = np.isnan(df[tct[0]].values)
         df = df.assign(na_cols=na_cols)
 
         ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
@@ -139,41 +145,41 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
 
         # Filtro IIR
-        filters = [lfilter for i in range(len(columns_to_filter))]
+        filters = [lfilter for i in range(len(tctf))]
         order = 1  # Order of the filter
         cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
 
         b, a = butter(order, cutoff, btype='low', analog=False)
         w, h = freqz(b, a)
         inplace = False
-        frame = IIR(df, target_columns=columns_to_filter, filters=filters, a=a, b=b, inplace=inplace)
+        frame = IIR(df, target_columns=tctf, filters=filters, a=a, b=b, inplace=inplace)
         if inplace is False:
             # Siccome ho creato nuove colonne (filtered_...), se questi valori esistono nel set da scalare
             # allora aggiungo filtered_... in columns to scale.
-            for ctf in columns_to_filter:
-                if ctf in columns_to_scale:
-                    columns_to_scale.append(f'filtered_{ctf}')
+            for ctf in tctf:
+                if ctf in tcts:
+                    tcts.append(f'filtered_{ctf}')
         # scalo le features e rimuovo quelle inutili
         # scalo a seconda del Training o Test mode
         if type == XYType.TRAIN:
             # se è training, genero gli scalers
-            frame = self.scale_df(frame, columns_to_scale=columns_to_scale,
+            frame = self.scale_df(frame, columns_to_scale=tcts,
                                   scalerType=scaler_type)
         elif type == XYType.TEST:
             # in caso di test, utilizzo gli scalers precedentemente creati
-            scaler_names = [f'scalers/{cts}_scaler.save' for cts in columns_to_scale]
-            frame = self.scale_df(frame, columns_to_scale=columns_to_scale, scaler_names=scaler_names,
+            scaler_names = [f'scalers/{cts}_scaler.save' for cts in tcts]
+            frame = self.scale_df(frame, columns_to_scale=tcts, scaler_names=scaler_names,
                                   scalerType=scaler_type)
 
         # creo le sequenze per la rete
-        columns_to_drop.append('na_cols')
-        target_columns_to_drop = columns_to_drop.copy()
+        tctd.append('na_cols')
+        target_columns_to_drop = tctd.copy()
         if inplace is False:
-            target_columns_to_drop.extend(columns_to_filter)
+            target_columns_to_drop.extend(tctf)
         filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
-        target_frame_drop = frame.drop(columns_to_drop, axis=1)
+        target_frame_drop = frame.drop(tctd, axis=1)
 
-        print(filtered_frame_drop.columns, target_frame_drop.columns)
+        # print(filtered_frame_drop.columns, target_frame_drop.columns)
 
         if cast_values:
             # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
@@ -186,7 +192,7 @@ class DatasetGenerator:
                                             self.seq_len_y)
             _, Y, _, ind_Y = split_sequence(target_frame_drop.values, self.seq_len_x, self.seq_len_y)
 
-        ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in columns_to_forecast]
+        ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in tct]
         Y = Y[:, :, ctfs]
         # pagino il dataset e lo salvo nell'apposita cartella
 
@@ -203,7 +209,49 @@ class DatasetGenerator:
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
 
+        # ripristino i valori iniziali
         return X, Y
+
+    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
+                    cast_values=True,
+                    remove_not_known=False,
+                    scaler_type=ScalerTypes.MINMAX,
+                    fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
+                    type: XYType = XYType.TRAIN,
+                    train_test_split=0.8):
+        if type == XYType.TRAIN or type == XYType.TEST:
+            X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
+                                      columns_to_forecast=columns_to_forecast, columns_to_filter=columns_to_filter,
+                                      cast_values=cast_values,
+                                      remove_not_known=remove_not_known,
+                                      scaler_type=scaler_type,
+                                      fill_na_type=fill_na_type,
+                                      type=type)
+            return X, y
+        elif type == XYType.TRAINTEST:
+            train_df = df[:int(len(df) * train_test_split)]
+            test_df = df[int(len(df) * train_test_split):]
+            X_train, y_train = self.__generate_XY(df=train_df, columns_to_scale=columns_to_scale,
+                                                  columns_to_drop=columns_to_drop,
+                                                  columns_to_forecast=columns_to_forecast,
+                                                  columns_to_filter=columns_to_filter,
+                                                  cast_values=cast_values,
+                                                  remove_not_known=remove_not_known,
+                                                  scaler_type=scaler_type,
+                                                  fill_na_type=fill_na_type,
+                                                  type=XYType.TRAIN)
+            X_test, y_test = self.__generate_XY(df=test_df, columns_to_scale=columns_to_scale,
+                                                columns_to_drop=columns_to_drop,
+                                                columns_to_forecast=columns_to_forecast,
+                                                columns_to_filter=columns_to_filter,
+                                                cast_values=cast_values,
+                                                remove_not_known=remove_not_known,
+                                                scaler_type=scaler_type,
+                                                fill_na_type=fill_na_type,
+                                                type=XYType.TEST)
+            return (X_train, y_train), (X_test, y_test)
+        else:
+            raise Exception("Wrong XY generation type")
 
     @staticmethod
     def save_XY(X, Y, base_path, filename):
