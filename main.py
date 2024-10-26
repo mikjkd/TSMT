@@ -3,7 +3,7 @@ import os.path
 
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 
 import eval_model
 from data_generator import BaseDataset
@@ -31,6 +31,7 @@ if __name__ == '__main__':
     train_test_split = 0.75
     loss = 'mae'
     save = True
+    padding_size = 30
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame()
@@ -43,7 +44,7 @@ if __name__ == '__main__':
                                                                          remove_not_known=False,
                                                                          type=XYType.TRAINTEST,
                                                                          train_test_split=train_test_split,
-                                                                         padding_size=20)
+                                                                         padding_size=padding_size)
     # Divido Train
     (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=False)
     model_name = generate_model_name()
@@ -65,14 +66,19 @@ if __name__ == '__main__':
         loss=loss,
         epochs=epochs
     )
-
-    lstm_y_preds = regressor.model.predict(X_test)
-    regressor.model.evaluate(X_test, y_test)
-    lstm_y_preds = lstm_y_preds.reshape(-1)
     model = load_model(f'saved_model/{model_name}.x')
-    mae = float(mean_squared_error(y_test.reshape(y_test.shape[0]), lstm_y_preds))
+    # Adjust test set by excluding the overlap
+    X_test_eval = X_test[padding_size:]
+    y_test_eval = y_test[padding_size:]
 
-    pearsonsval = eval_model.eval(model_name, (X_test, y_test))
+    # Model predictions
+    lstm_y_preds = regressor.model.predict(X_test_eval).reshape(-1)
+
+    # Calculate Mean Absolute Error (MAE)
+    mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
+
+    # Calculate Pearson's correlation
+    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval))
 
     if save:
         file_exists = os.path.isfile('performances.json')
@@ -92,7 +98,8 @@ if __name__ == '__main__':
                 'forecast_column': columns_to_forecast,
                 'filtered_columns': columns_to_filter,
                 'filter_type': 'Low',
-                'train_test_split': train_test_split
+                'train_test_split': train_test_split,
+                'padding_size': padding_size
             }
         }
         json_object = json.dumps(data, indent=4)

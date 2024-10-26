@@ -347,9 +347,10 @@ def generate_dataset():
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
                                          fill_na_type=FillnaTypes.MEAN, remove_not_known=False, type=XYType.TRAIN)
+    train_test_split = 0.75
     # divisione train e test
-    X_train, y_train = X[:int(len(X) * 0.8)], y[:int(len(y) * 0.8)]
-    X_test, y_test = X[int(len(X) * 0.8):], y[int(len(y) * 0.8):]
+    X_train, y_train = X[:int(len(X) * train_test_split)], y[:int(len(y) * train_test_split)]
+    X_test, y_test = X[int(len(X) * train_test_split):], y[int(len(y) * train_test_split):]
 
     # salvataggio trainin e test set
     dataset_generator.save_XY(X_train, y_train, base_path, 'train')
