@@ -78,7 +78,6 @@ def eval(model_name, data):
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
     regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
-    scaler_path = f'scalers'
     if type(data) is CustomOpsGenerator:
         X_test, y_test = BaseDataset.generator_to_Xy(data)
         # eval_model.eval(model_name)
@@ -93,16 +92,18 @@ def eval(model_name, data):
         raise Exception('Wrong data type')
     pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False)
     y_true = y_test.reshape(y_test.shape[0], )
-    scaled_y_true = scale_preds(y_true, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
-    scaled_y_preds = scale_preds(y_preds, scaler_path=f'{scaler_path}/Rn_olb_scaler.save')
 
-    rn = DatasetGenerator.get_ts_from_ds(X_test, -2)
+    rn = DatasetGenerator.get_ts_from_ds(X_test, -1)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
-
-    plt.plot(scaled_y_true, label='true')
-    plt.plot(scaled_y_preds, label='preds')
+    plt.figure(figsize=(20, 6), dpi=80)
+    plt.plot(rn, label='X_test')
+    plt.plot(range(30, len(y_test) + 30), y_true, label='True')
+    plt.show()
+    plt.figure(figsize=(20, 6), dpi=80)
+    plt.plot(y_true, label='true')
+    plt.plot(y_preds, label='preds')
     plt.legend()
     plt.show()
 

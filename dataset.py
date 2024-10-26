@@ -334,7 +334,7 @@ def generate_dataset():
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
+                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False, type=XYType.TRAIN)
     # divisione train e test
     X_train, y_train = X[:int(len(X) * 0.8)], y[:int(len(y) * 0.8)]
     X_test, y_test = X[int(len(X) * 0.8):], y[int(len(y) * 0.8):]
