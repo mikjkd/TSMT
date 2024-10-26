@@ -218,7 +218,7 @@ class DatasetGenerator:
                     scaler_type=ScalerTypes.MINMAX,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                     type: XYType = XYType.TRAIN,
-                    train_test_split=0.8):
+                    train_test_split=0.8, padding_size=0):
         if type == XYType.TRAIN or type == XYType.TEST:
             X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
                                       columns_to_forecast=columns_to_forecast, columns_to_filter=columns_to_filter,
@@ -240,7 +240,19 @@ class DatasetGenerator:
                                                   scaler_type=scaler_type,
                                                   fill_na_type=fill_na_type,
                                                   type=XYType.TRAIN)
-            X_test, y_test = self.__generate_XY(df=test_df, columns_to_scale=columns_to_scale,
+            # il padding_size in TRAINTEST viene utilizzato per una tecnica chiamata Alignment Buffer.
+            # Questo buffer, composto dalle ultime 20 righe del training test posizionate prima del test
+            # consente una migliore transizione della finestra, evitando un fenomeno che si chiama Boundary Effect.
+            # Con questa finestra di buffer è possibile quindi avere una transizione più smooth dal training al test
+            # con condizioni iniziali che hanno un senso nel caso in cui si divide in modo netto il dataset.
+            if padding_size > 0:
+                # Create overlap by taking the last 'overlap_size' rows from train_df
+                overlap_df = train_df.iloc[-padding_size:].copy()
+                test_df_with_overlap = pd.concat([overlap_df, test_df], ignore_index=True)
+            else:
+                test_df_with_overlap = test_df
+
+            X_test, y_test = self.__generate_XY(df=test_df_with_overlap, columns_to_scale=columns_to_scale,
                                                 columns_to_drop=columns_to_drop,
                                                 columns_to_forecast=columns_to_forecast,
                                                 columns_to_filter=columns_to_filter,

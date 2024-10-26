@@ -2,22 +2,24 @@ import json
 import os.path
 
 from keras.src.optimizers import Adam
+from keras.src.saving.saving_api import load_model
 from sklearn.metrics import mean_squared_error
 
 import eval_model
 from data_generator import BaseDataset
-from dataset import DatasetGenerator, FillnaTypes
+from dataset import DatasetGenerator, FillnaTypes, XYType
 from model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor
 
 if __name__ == '__main__':
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
+    columns = ['date', 'RSAM', 'T_olb',
+               'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
                'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
                'background seismicity']
     columns_to_forecast = ['Rn_olb']
     columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     columns_to_drop = ['date', 'displacement (cm)', 'background seismicity', 'T_msa', 'Ru_msa', 'P_msa', 'Rn_msa']
-    columns_to_filter = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
+    columns_to_filter = []  # ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     seq_len_x = 30
     seq_len_y = 1
     data_path = 'data/olb_msa_full.csv'
@@ -26,34 +28,34 @@ if __name__ == '__main__':
     scalers = 'scalers/'
     batch_size = 64
     learning_rate = 0.001
+    train_test_split = 0.75
     loss = 'mae'
     save = True
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame()
-    X, y = dataset_generator.generate_XY(df=df, columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
-                                         columns_to_drop=['date', 'displacement (cm)',
-                                                          'background seismicity', 'T_msa',
-                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'],
-                                         columns_to_filter=columns_to_filter,
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False)
-    # Creo train & test
-    X_train, y_train = X[:int(len(X) * 0.8)], y[:int(len(y) * 0.8)]
-    X_test, y_test = X[int(len(X) * 0.8):], y[int(len(y) * 0.8):]
+    (X_train, y_train), (X_test, y_test) = dataset_generator.generate_XY(df=df,
+                                                                         columns_to_scale=columns_to_scale,
+                                                                         columns_to_drop=columns_to_drop,
+                                                                         columns_to_forecast=columns_to_forecast,
+                                                                         columns_to_filter=columns_to_filter,
+                                                                         fill_na_type=FillnaTypes.MEAN,
+                                                                         remove_not_known=False,
+                                                                         type=XYType.TRAINTEST,
+                                                                         train_test_split=train_test_split,
+                                                                         padding_size=20)
     # Divido Train
-    (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=True)
-
+    (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=False)
     model_name = generate_model_name()
     regressor = LSTMRegressor(model_name=model_name)
-    input_shape = (X.shape[1], X.shape[2])
+    input_shape = (X_train.shape[1], X_train.shape[2])
     output_shape = 1
     regressor.generate_model(input_shape, output_shape)
 
     # train model
 
     trainer = ModelTrainer(batch_size=batch_size)
-    epochs = 512
+    epochs = 1024
     trainer.run(
         model=regressor.model,
         model_name=regressor.model_name,
@@ -67,7 +69,7 @@ if __name__ == '__main__':
     lstm_y_preds = regressor.model.predict(X_test)
     regressor.model.evaluate(X_test, y_test)
     lstm_y_preds = lstm_y_preds.reshape(-1)
-
+    model = load_model(f'saved_model/{model_name}.x')
     mae = float(mean_squared_error(y_test.reshape(y_test.shape[0]), lstm_y_preds))
 
     pearsonsval = eval_model.eval(model_name, (X_test, y_test))
@@ -89,7 +91,8 @@ if __name__ == '__main__':
                 'input_columns': columns_to_scale,
                 'forecast_column': columns_to_forecast,
                 'filtered_columns': columns_to_filter,
-                'filter_type': 'Low'
+                'filter_type': 'Low',
+                'train_test_split': train_test_split
             }
         }
         json_object = json.dumps(data, indent=4)
