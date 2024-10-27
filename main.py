@@ -19,7 +19,7 @@ if __name__ == '__main__':
     columns_to_forecast = ['Rn_olb']
     columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     columns_to_drop = ['date', 'displacement (cm)', 'background seismicity', 'T_msa', 'Ru_msa', 'P_msa', 'Rn_msa']
-    columns_to_filter = []  # ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
+    columns_to_filter = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     seq_len_x = 30
     seq_len_y = 1
     data_path = 'data/olb_msa_full.csv'
@@ -77,8 +77,8 @@ if __name__ == '__main__':
     # Calculate Mean Absolute Error (MAE)
     mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
 
-    # Calculate Pearson's correlation
-    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval))
+    # Calculate Pearson's correlation => i have a filtered X
+    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval), target_column=-1)
 
     if save:
         file_exists = os.path.isfile('performances.json')

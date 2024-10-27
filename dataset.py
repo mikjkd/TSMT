@@ -174,8 +174,9 @@ class DatasetGenerator:
         # creo le sequenze per la rete
         tctd.append('na_cols')
         target_columns_to_drop = tctd.copy()
-        if inplace is False:
-            target_columns_to_drop.extend(tctf)
+        # se inplace è false, utilizzo anche le colonne filtrate come dataset
+        # if inplace is False:
+        #    target_columns_to_drop.extend(tctf)
         filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
         target_frame_drop = frame.drop(tctd, axis=1)
 

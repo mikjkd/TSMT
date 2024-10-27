@@ -74,7 +74,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/
     return corr
 
 
-def eval(model_name, data):
+def eval(model_name, data, target_column):
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
     regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
@@ -93,13 +93,14 @@ def eval(model_name, data):
     pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False)
     y_true = y_test.reshape(y_test.shape[0], )
 
-    rn = DatasetGenerator.get_ts_from_ds(X_test, -1)
+    rn = DatasetGenerator.get_ts_from_ds(X_test, target_column)
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn)
     plt.show()
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(rn, label='X_test')
     plt.plot(range(30, len(y_test) + 30), y_true, label='True')
+    plt.legend()
     plt.show()
     plt.figure(figsize=(20, 6), dpi=80)
     plt.plot(y_true, label='true')
