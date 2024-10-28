@@ -11,6 +11,39 @@ from dataset import DatasetGenerator, FillnaTypes, XYType
 from model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor
 
+
+def save_results():
+    file_exists = os.path.isfile('performances.json')
+    data = {
+        'model_name': model_name, 'batch_size': batch_size,
+        'epochs': epochs, 'metric_type': loss,
+        'result': mae, 'pearson': pearsonsval,
+        'numstep_in': seq_len_x,
+        'numstep_out': seq_len_y,
+        'model_features': {
+            'model_type': 'LSTM',
+            'model_description': regressor.description()
+        },
+        'dataset_features': {
+            'filler_type': FillnaTypes.MEAN.value,
+            'input_columns': columns_to_scale,
+            'forecast_column': columns_to_forecast,
+            'filters_settings': filters,
+            'filter_type': 'Low',
+            'train_test_split': train_test_split,
+            'padding_size': padding_size
+        }
+    }
+    if file_exists:
+        with open("performances.json", "r") as jsonfile:
+            fulljson = json.load(jsonfile)
+        fulljson.append(data)
+    else:
+        fulljson = [data]
+    with open("performances.json", "w+") as jsonfile:
+        json.dump(fulljson, jsonfile)
+
+
 if __name__ == '__main__':
     columns = ['date', 'RSAM', 'T_olb',
                'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
@@ -19,14 +52,36 @@ if __name__ == '__main__':
     columns_to_forecast = ['Rn_olb']
     columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
     columns_to_drop = ['date', 'displacement (cm)', 'background seismicity', 'T_msa', 'Ru_msa', 'P_msa', 'Rn_msa']
-    columns_to_filter = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
+    # filtering settings
+    order = 1  # Order of the filter
+    lp_cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
+    hp_cutoff = 0.8
+    filters = {
+        'high': {
+            'items': [
+                # { 'column': 'Rn_olb','parameters': {'order': order,'cutoff': hp_cutoff}}
+            ],
+        },
+        'low': {
+            'items': [
+                {
+                    'column': 'Rn_olb',
+                    'parameters': {
+                        'order': order,
+                        'cutoff': lp_cutoff
+                    }
+                }
+            ],
+        }
+    }
+
     seq_len_x = 30
     seq_len_y = 1
     data_path = 'data/olb_msa_full.csv'
     base_path = 'dataset/'
     encoders = 'encoders/'
     scalers = 'scalers/'
-    batch_size = 64
+    batch_size = 32
     learning_rate = 0.001
     train_test_split = 0.75
     loss = 'mae'
@@ -39,14 +94,14 @@ if __name__ == '__main__':
                                                                          columns_to_scale=columns_to_scale,
                                                                          columns_to_drop=columns_to_drop,
                                                                          columns_to_forecast=columns_to_forecast,
-                                                                         columns_to_filter=columns_to_filter,
+                                                                         filters=filters,
                                                                          fill_na_type=FillnaTypes.MEAN,
                                                                          remove_not_known=False,
                                                                          type=XYType.TRAINTEST,
                                                                          train_test_split=train_test_split,
                                                                          padding_size=padding_size)
     # Divido Train
-    (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=False)
+    (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=True)
     model_name = generate_model_name()
     regressor = LSTMRegressor(model_name=model_name)
     input_shape = (X_train.shape[1], X_train.shape[2])
@@ -81,34 +136,4 @@ if __name__ == '__main__':
     pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval), target_column=-1)
 
     if save:
-        file_exists = os.path.isfile('performances.json')
-        data = {
-            'model_name': model_name, 'batch_size': batch_size,
-            'epochs': epochs, 'metric_type': loss,
-            'result': mae, 'pearson': pearsonsval,
-            'numstep_in': seq_len_x,
-            'numstep_out': seq_len_y,
-            'model_features': {
-                'model_type': 'LSTM',
-                'model_description': regressor.description()
-            },
-            'dataset_features': {
-                'filler_type': FillnaTypes.MEAN.value,
-                'input_columns': columns_to_scale,
-                'forecast_column': columns_to_forecast,
-                'filtered_columns': columns_to_filter,
-                'filter_type': 'Low',
-                'train_test_split': train_test_split,
-                'padding_size': padding_size
-            }
-        }
-        json_object = json.dumps(data, indent=4)
-        fulljson = None
-        if file_exists:
-            with open("performances.json", "r") as jsonfile:
-                fulljson = json.load(jsonfile)
-            fulljson.append(data)
-        else:
-            fulljson = [data]
-        with open("performances.json", "w+") as jsonfile:
-            json.dump(fulljson, jsonfile)
+        save_results()
