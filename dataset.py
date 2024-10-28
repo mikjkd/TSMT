@@ -6,7 +6,7 @@ from enum import Enum
 import joblib
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, freqz, lfilter
+from scipy.signal import butter, lfilter
 
 from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR
 
@@ -52,8 +52,23 @@ class DatasetGenerator:
         self.encoders = encoders
         self.scaler_path = scaler_path
 
-    def scale_df(self, frame, columns_to_scale=None, scaler_names=None,
-                 scalerType: ScalerTypes = ScalerTypes.MINMAX):
+    def load_XY(self):
+        pass
+
+    def generate_frame(self, start_date=None, end_date=None) -> pd.DataFrame:
+        df = pd.read_csv(self.data_path)
+        df.columns = self.columns
+
+        if start_date:
+            df = df[df['date'] >= start_date]
+
+        if end_date:
+            df = df[df['date'] <= end_date]
+
+        return df
+
+    def __scale_df(self, frame, columns_to_scale=None, scaler_names=None,
+                   scalerType: ScalerTypes = ScalerTypes.MINMAX):
         if columns_to_scale is None:
             print('No columns to scale')
             return
@@ -77,9 +92,6 @@ class DatasetGenerator:
                 joblib.dump(tmp_scaler, self.scaler_path + cts + '_scaler.save')
         return frame
 
-    def load_XY(self):
-        pass
-
     def __process_ds(self, frame, date_prediction_start=None, days_delta=7):
         frame = frame.copy()
 
@@ -91,17 +103,26 @@ class DatasetGenerator:
             frame.reset_index(inplace=True, drop=True)
         return frame
 
-    def generate_frame(self, start_date=None, end_date=None) -> pd.DataFrame:
-        df = pd.read_csv(self.data_path)
-        df.columns = self.columns
+    def __get_na_cols(self, df, columns_to_forecast):
+        na_cols = np.isnan(df[columns_to_forecast].values)
+        df = df.assign(na_cols=na_cols)
+        return df, na_cols
 
-        if start_date:
-            df = df[df['date'] >= start_date]
-
-        if end_date:
-            df = df[df['date'] <= end_date]
-
+    def __fill_na(self, df, fill_na_type: FillnaTypes):
+        if fill_na_type == FillnaTypes.SIMPLE:
+            df = df.fillna(0)
+        elif fill_na_type == FillnaTypes.MEAN:
+            df = fill_na_mean(df, self.columns)
         return df
+
+    def __filter(self, df, colums_to_filter, inplace):
+        filters = [lfilter for i in range(len(colums_to_filter))]
+        order = 1  # Order of the filter
+        cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
+
+        b, a = butter(order, cutoff, btype='low', analog=False)
+        frame = IIR(df, target_columns=colums_to_filter, filters=filters, a=a, b=b, inplace=inplace)
+        return frame
 
     """generate_XY generates the X,y tensor needed for training/testing the model. It takes as input a DataFrame 
     object -> the original data that we want to convert into tensors; The name of the columns that have to be scaled, 
@@ -130,29 +151,16 @@ class DatasetGenerator:
         tctf = columns_to_filter.copy()
         tct = columns_to_forecast.copy()
         # Adding the flag to the NAs columns
-        na_cols = np.isnan(df[tct[0]].values)
-        df = df.assign(na_cols=na_cols)
-
+        df, na_cols = self.__get_na_cols(df, tct[0])
         ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
         # valori NA
         # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
         # knowing the fact that we need to fill, a good way is to add a column to the df, saying that a specific value
         # has been filled with another value. That helps in post processing part
-
-        if fill_na_type == FillnaTypes.SIMPLE:
-            df = df.fillna(0)
-        elif fill_na_type == FillnaTypes.MEAN:
-            df = fill_na_mean(df, self.columns)
-
+        df = self.__fill_na(df, fill_na_type=fill_na_type)
         # Filtro IIR
-        filters = [lfilter for i in range(len(tctf))]
-        order = 1  # Order of the filter
-        cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
-
-        b, a = butter(order, cutoff, btype='low', analog=False)
-        w, h = freqz(b, a)
         inplace = False
-        frame = IIR(df, target_columns=tctf, filters=filters, a=a, b=b, inplace=inplace)
+        frame = self.__filter(df=df, colums_to_filter=tctf, inplace=inplace)
         if inplace is False:
             # Siccome ho creato nuove colonne (filtered_...), se questi valori esistono nel set da scalare
             # allora aggiungo filtered_... in columns to scale.
@@ -163,13 +171,13 @@ class DatasetGenerator:
         # scalo a seconda del Training o Test mode
         if type == XYType.TRAIN:
             # se è training, genero gli scalers
-            frame = self.scale_df(frame, columns_to_scale=tcts,
-                                  scalerType=scaler_type)
+            frame = self.__scale_df(frame, columns_to_scale=tcts,
+                                    scalerType=scaler_type)
         elif type == XYType.TEST:
             # in caso di test, utilizzo gli scalers precedentemente creati
             scaler_names = [f'scalers/{cts}_scaler.save' for cts in tcts]
-            frame = self.scale_df(frame, columns_to_scale=tcts, scaler_names=scaler_names,
-                                  scalerType=scaler_type)
+            frame = self.__scale_df(frame, columns_to_scale=tcts, scaler_names=scaler_names,
+                                    scalerType=scaler_type)
 
         # creo le sequenze per la rete
         tctd.append('na_cols')
