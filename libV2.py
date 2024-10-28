@@ -6,6 +6,7 @@ from typing import List
 import keras
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 # importing the requests library
 import requests
 import tensorflow as tf
@@ -384,7 +385,7 @@ Il parametro filters deve essere una lista di filtri, come il seguente
 """
 
 
-def IIR(df, target_columns: List, filters: List, a, b, inplace=False):
+def IIR(df: pd.DataFrame, target_columns: List, filters: List, a, b, inplace=False) -> pd.DataFrame:
     frame = df.copy()
     # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
     for idx, c in enumerate(target_columns):

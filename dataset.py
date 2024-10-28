@@ -115,16 +115,30 @@ class DatasetGenerator:
             df = fill_na_mean(df, self.columns)
         return df
 
-    def __filter(self, df, colums_to_filter, inplace):
+    def __filter(self, df, colums_to_filter, type, order, cutoff, inplace):
         filters = [lfilter for i in range(len(colums_to_filter))]
-        order = 1  # Order of the filter
-        cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
+        try:
+            b, a = butter(order, cutoff, btype=type, analog=False)
+            frame: pd.DataFrame = IIR(df, target_columns=colums_to_filter, filters=filters, a=a, b=b, inplace=inplace)
+            if inplace is False:
+                cnames = {f'filtered_{ctf}': f'{type}_filtered_{ctf}' for ctf in colums_to_filter}
+                frame.rename(columns=cnames, inplace=True)
+            return frame
+        except:
+            raise Exception('Wrong filter type')
 
-        b, a = butter(order, cutoff, btype='low', analog=False)
-        frame = IIR(df, target_columns=colums_to_filter, filters=filters, a=a, b=b, inplace=inplace)
+    def __multi_filter(self, df: pd.DataFrame, filters) -> pd.DataFrame:
+        frame = df.copy()
+        for k in filters.keys():
+            items = filters[k]['items']
+            for i in items:
+                ctf = [i['column']]
+                order = i['parameters']['order']
+                cutoff = i['parameters']['cutoff']
+                frame = self.__filter(frame, colums_to_filter=ctf, type=k, order=order, cutoff=cutoff, inplace=False)
         return frame
 
-    """generate_XY generates the X,y tensor needed for training/testing the model. It takes as input a DataFrame 
+    """generate_XY generates the X,y tensor needed for training/testing the model. It takes as input a DataFrame
     object -> the original data that we want to convert into tensors; The name of the columns that have to be scaled, 
     dropped, filtered (columns_to_scale, columns_to_drop, columns_to_filter); The values we want to learn ( 
     columns_to_forecast) are needed in order to create a target variable (y); Since the DataFrame often has missing 
@@ -136,7 +150,7 @@ class DatasetGenerator:
     (X_test,Y_test)
     """
 
-    def __generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
+    def __generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
                       cast_values=True,
                       remove_not_known=False,
                       scaler_type=ScalerTypes.MINMAX,
@@ -148,7 +162,6 @@ class DatasetGenerator:
         # copio le variabili altrimenti fuori dalla funzione risultano modificate e creano degli errori
         tcts = columns_to_scale.copy()
         tctd = columns_to_drop.copy()
-        tctf = columns_to_filter.copy()
         tct = columns_to_forecast.copy()
         # Adding the flag to the NAs columns
         df, na_cols = self.__get_na_cols(df, tct[0])
@@ -160,13 +173,16 @@ class DatasetGenerator:
         df = self.__fill_na(df, fill_na_type=fill_na_type)
         # Filtro IIR
         inplace = False
-        frame = self.__filter(df=df, colums_to_filter=tctf, inplace=inplace)
+        # frame = self.__filter(df=df, colums_to_filter=tctf, inplace=inplace)
+        frame = self.__multi_filter(df=df, filters=filters)
         if inplace is False:
             # Siccome ho creato nuove colonne (filtered_...), se questi valori esistono nel set da scalare
             # allora aggiungo filtered_... in columns to scale.
-            for ctf in tctf:
-                if ctf in tcts:
-                    tcts.append(f'filtered_{ctf}')
+            for k in filters.keys():
+                items = filters[k]['items']
+                for i in items:
+                    if i["column"] in tcts:
+                        tcts.append(f'{k}_filtered_{i["column"]}')
         # scalo le features e rimuovo quelle inutili
         # scalo a seconda del Training o Test mode
         if type == XYType.TRAIN:
@@ -221,7 +237,7 @@ class DatasetGenerator:
         # ripristino i valori iniziali
         return X, Y
 
-    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, columns_to_filter=[],
+    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
                     cast_values=True,
                     remove_not_known=False,
                     scaler_type=ScalerTypes.MINMAX,
@@ -230,7 +246,7 @@ class DatasetGenerator:
                     train_test_split=0.8, padding_size=0):
         if type == XYType.TRAIN or type == XYType.TEST:
             X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
-                                      columns_to_forecast=columns_to_forecast, columns_to_filter=columns_to_filter,
+                                      columns_to_forecast=columns_to_forecast, filters=filters,
                                       cast_values=cast_values,
                                       remove_not_known=remove_not_known,
                                       scaler_type=scaler_type,
@@ -243,7 +259,7 @@ class DatasetGenerator:
             X_train, y_train = self.__generate_XY(df=train_df, columns_to_scale=columns_to_scale,
                                                   columns_to_drop=columns_to_drop,
                                                   columns_to_forecast=columns_to_forecast,
-                                                  columns_to_filter=columns_to_filter,
+                                                  filters=filters,
                                                   cast_values=cast_values,
                                                   remove_not_known=remove_not_known,
                                                   scaler_type=scaler_type,
@@ -264,7 +280,7 @@ class DatasetGenerator:
             X_test, y_test = self.__generate_XY(df=test_df_with_overlap, columns_to_scale=columns_to_scale,
                                                 columns_to_drop=columns_to_drop,
                                                 columns_to_forecast=columns_to_forecast,
-                                                columns_to_filter=columns_to_filter,
+                                                filters=filters,
                                                 cast_values=cast_values,
                                                 remove_not_known=remove_not_known,
                                                 scaler_type=scaler_type,
@@ -322,7 +338,7 @@ class DatasetGenerator:
         return rn
 
 
-def generate_dataset():
+def generate_dataset(save):
     data_path = 'data/olb_msa_full.csv'
     base_path = 'dataset/'
     encoders = 'encoders/'
@@ -346,15 +362,41 @@ def generate_dataset():
     columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
                'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
                'background seismicity']
+    columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
+    columns_to_drop = ['date', 'displacement (cm)',
+                       'background seismicity', 'T_msa',
+                       'Ru_msa', 'P_msa', 'Rn_msa']
+    columns_to_forecast = ['Rn_olb']
+    # filtering settings
+    order = 1  # Order of the filter
+    lp_cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
+    hp_cutoff = 0.8
+    filters = {
+        'high': {
+            'items': [
+                # { 'column': 'Rn_olb','parameters': {'order': order,'cutoff': hp_cutoff}}
+            ],
+        },
+        'low': {
+            'items': [
+                {
+                    'column': 'Rn_olb',
+                    'parameters': {
+                        'order': order,
+                        'cutoff': lp_cutoff
+                    }
+                }
+            ],
+        }
+    }
 
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame()
-    X, y = dataset_generator.generate_XY(df=df, columns_to_scale=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
-                                         columns_to_drop=['date', 'displacement (cm)',
-                                                          'background seismicity', 'T_msa',
-                                                          'Ru_msa', 'P_msa', 'Rn_msa'],
-                                         columns_to_forecast=['Rn_olb'],
+    X, y = dataset_generator.generate_XY(df=df, columns_to_scale=columns_to_scale,
+                                         columns_to_drop=columns_to_drop,
+                                         columns_to_forecast=columns_to_forecast,
+                                         filters=filters,
                                          fill_na_type=FillnaTypes.MEAN, remove_not_known=False, type=XYType.TRAIN)
     train_test_split = 0.75
     # divisione train e test
@@ -362,9 +404,10 @@ def generate_dataset():
     X_test, y_test = X[int(len(X) * train_test_split):], y[int(len(y) * train_test_split):]
 
     # salvataggio trainin e test set
-    dataset_generator.save_XY(X_train, y_train, base_path, 'train')
-    dataset_generator.save_XY(X_test, y_test, base_path, 'test')
+    if save:
+        dataset_generator.save_XY(X_train, y_train, base_path, 'train')
+        dataset_generator.save_XY(X_test, y_test, base_path, 'test')
 
 
 if __name__ == '__main__':
-    generate_dataset()
+    generate_dataset(save=False)
