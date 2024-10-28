@@ -59,18 +59,16 @@ if __name__ == '__main__':
     filters = {
         'high': {
             'items': [
-                # { 'column': 'Rn_olb','parameters': {'order': order,'cutoff': hp_cutoff}}
+                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': hp_cutoff}}
             ],
         },
         'low': {
             'items': [
-                {
-                    'column': 'Rn_olb',
-                    'parameters': {
-                        'order': order,
-                        'cutoff': lp_cutoff
-                    }
-                }
+                # {'column': 'RSAM', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'T_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'Ru_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'P_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
             ],
         }
     }
@@ -111,7 +109,7 @@ if __name__ == '__main__':
     # train model
 
     trainer = ModelTrainer(batch_size=batch_size)
-    epochs = 1024
+    epochs = 512
     trainer.run(
         model=regressor.model,
         model_name=regressor.model_name,
@@ -133,7 +131,7 @@ if __name__ == '__main__':
     mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
 
     # Calculate Pearson's correlation => i have a filtered X
-    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval), target_column=-1)
+    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval))
 
     if save:
         save_results()

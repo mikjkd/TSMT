@@ -374,18 +374,16 @@ def generate_dataset(save):
     filters = {
         'high': {
             'items': [
-                # { 'column': 'Rn_olb','parameters': {'order': order,'cutoff': hp_cutoff}}
+                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': hp_cutoff}}
             ],
         },
         'low': {
             'items': [
-                {
-                    'column': 'Rn_olb',
-                    'parameters': {
-                        'order': order,
-                        'cutoff': lp_cutoff
-                    }
-                }
+                # {'column': 'RSAM', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'T_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'Ru_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                # {'column': 'P_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
             ],
         }
     }
