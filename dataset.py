@@ -355,6 +355,7 @@ def generate_dataset():
                                                           'background seismicity', 'T_msa',
                                                           'Ru_msa', 'P_msa', 'Rn_msa'],
                                          columns_to_forecast=['Rn_olb'],
+                                         columns_to_filter=['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb'],
                                          fill_na_type=FillnaTypes.MEAN, remove_not_known=False, type=XYType.TRAIN)
     train_test_split = 0.75
     # divisione train e test
