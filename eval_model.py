@@ -82,12 +82,10 @@ def eval(model_name, data, scaler_path=None):
     if type(data) is CustomOpsGenerator:
         X_test, y_test = BaseDataset.generator_to_Xy(data)
         # eval_model.eval(model_name)
-        y_preds = regressor.model.predict(data)
-        regressor.model.evaluate(data)
+        y_preds = regressor.predict(data)
 
     elif type(data) is tuple:
-        y_preds = regressor.model.predict(data[0])
-        regressor.model.evaluate(data[0], data[1])
+        y_preds = regressor.predict(data[0])
         X_test, y_test = data[0], data[1]
     else:
         raise Exception('Wrong data type')

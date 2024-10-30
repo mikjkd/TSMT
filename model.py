@@ -1,15 +1,13 @@
 import hashlib
 import random
 import string
+from enum import Enum
 from typing import Optional
 
-import joblib
 import keras
 import matplotlib.pyplot as plt
-import numpy as np
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.callbacks import History
-from keras.losses import mean_squared_error, mean_absolute_error
 from keras.src.callbacks import ReduceLROnPlateau
 from keras.src.optimizers import Adam
 from keras.src.saving.saving_api import load_model
@@ -19,6 +17,7 @@ class ModelTrainer:
     def __init__(self, batch_size):
         self.batch_size: int = batch_size
 
+    # @TODO: Train model with k-fold
     def train_model(self, config) -> History:
         model = config['model']
         model_name = config['model_name']
@@ -86,39 +85,57 @@ class ModelTrainer:
         plt.show()
 
 
+class PredMode(Enum):
+    STD = 'Standard'
+    FR = 'FreeRun'
+
+
+class PredictConfig:
+    def __init__(self, pred_mode: PredMode, options=None):
+        self.mode = pred_mode
+        self.options = options
+
+
 class RegressorModel:
-    def __init__(self, model_name):
-        self.model: Optional[keras.Model] = None
+    def __init__(self, model_name, model=None, history=None):
+        self.model: Optional[keras.Model] = model
         self.model_name: str = model_name
-        self.history: Optional[History] = None
+        self.history: Optional[History] = history
+        self.pred_config: PredictConfig = PredictConfig(PredMode.STD)
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
         pass
+
+    def set_pred_mode(self, pred_mode: PredMode, options=None):
+        self.pred_config.mode = pred_mode
+        if pred_mode is PredMode.FR:
+            self.pred_config.options = options
 
     def load_model(self, model_path):
         self.model = load_model(model_path)
         return self.model
 
-    def evaluate_model(self, y_pred, y_true):
-        # Implementazione della valutazione del modello
-        y_pred = y_pred.reshape(-1)
-        mse = mean_squared_error(y_true, y_pred)
-        mae = mean_absolute_error(y_true, y_pred)
-        rmse = np.sqrt(mse)
-
-        print("Mean Squared Error (MSE):", mse)
-        print("Mean Absolute Error (MAE):", mae)
-        print("Root Mean Squared Error (RMSE):", rmse)
-
-    def make_predictions(self, X, scaler_path):
+    def predict(self, X):
         # Implementazione della predizione
-        scaler = joblib.load(scaler_path)
-        preds = self.model.predict(X)
-        scaled_preds = []
-        for p in preds[:, 0]:
-            scaled_preds.append(scaler.inverse_transform(p.reshape(-1, 1)))
-        scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
-        return scaled_preds
+        if self.pred_config.mode is PredMode.STD:
+            preds = self.model.predict(X)
+        elif self.pred_config.mode is PredMode.FR:
+            raise Exception('Free-Run not already implemented')
+            # steps = self.pred_config.options['steps']
+            # preds = []
+            # v = None
+            # for i in range(0, steps):
+            #    X_input = X[i].reshape(1, X.shape[1], X.shape[2])
+            #    if i > 0:
+            #        idx = min(i, 30)
+            #        X_input[0, -idx:, 4] = preds[-idx:]
+            #    v = self.model.predict(X_input)
+            #    preds.append(v.item())
+            # preds = np.array(preds)
+            # preds = preds.reshape(preds.shape[0], 1)
+        else:
+            raise Exception('Wrong prediction execution')
+        return preds
 
     def visualize_results(self, actual, predicted):
         # Implementazione della visualizzazione dei risultati
