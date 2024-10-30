@@ -121,8 +121,8 @@ if __name__ == '__main__':
     )
     model = load_model(f'saved_model/{model_name}.x')
     # Adjust test set by excluding the overlap
-    X_test_eval = X_test[padding_size:]
-    y_test_eval = y_test[padding_size:]
+    X_test_eval = X_test  # [padding_size:]
+    y_test_eval = y_test  # [padding_size:]
 
     # Model predictions
     lstm_y_preds = regressor.model.predict(X_test_eval).reshape(-1)

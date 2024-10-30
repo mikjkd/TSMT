@@ -62,7 +62,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/
         scaled_y_true = np.delete(scaled_y_true, wtr_x)
         scaled_y_preds = np.delete(scaled_y_preds, wtr_x)
     """
-    corr, _ = pearsonr(y_true, y_preds)
+    corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
     print('Pearsons correlation: %.3f' % corr)
 
     v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
@@ -73,7 +73,9 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/
     return corr
 
 
-def eval(model_name, data):
+def eval(model_name, data, scaler_path=None):
+    if scaler_path is None:
+        scaler_path = 'scalers/Rn_olb_scaler.save'
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
     regressor = RegressorModel(model_name=model_name)
     regressor.load_model(f'saved_model/{model_name}.x')
@@ -89,11 +91,20 @@ def eval(model_name, data):
         X_test, y_test = data[0], data[1]
     else:
         raise Exception('Wrong data type')
-    pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False)
+    pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False, scaler_path=scaler_path)
     y_true = y_test.reshape(y_test.shape[0], )
-    plt.figure(figsize=(20, 6), dpi=80)
-    plt.plot(y_true, label='true')
-    plt.plot(y_preds, label='preds')
+    # plt.figure(figsize=(20, 6), dpi=80)
+    # plt.plot(y_true, label='true')
+    # plt.plot(y_preds, label='preds')
+    # plt.legend()
+    # plt.show()
+
+    scaled_preds = scale_preds(y_preds, scaler_path)
+    scaled_true = scale_preds(y_true, scaler_path)
+    plt.figure(figsize=(20, 6))
+    plt.plot(scaled_true, label='True')
+    plt.plot(scaled_preds,
+             label='preds')
     plt.legend()
     plt.show()
 
