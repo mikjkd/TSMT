@@ -12,7 +12,9 @@ from model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor, TDLSTMRegressor
 
 
-def save_results():
+def save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len_x, seq_len_y,
+                 regressor, timedistributed, columns_to_scale, columns_to_forecast, filters,
+                 train_test_split, padding_size):
     file_exists = os.path.isfile('performances.json')
     data = {
         'model_name': model_name, 'batch_size': batch_size,
@@ -45,7 +47,7 @@ def save_results():
         json.dump(fulljson, jsonfile)
 
 
-if __name__ == '__main__':
+def main():
     columns = ['date', 'RSAM', 'T_olb',
                'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
                'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
@@ -138,4 +140,10 @@ if __name__ == '__main__':
     # Calculate Pearson's correlation => i have a filtered X
 
     if save:
-        save_results()
+        save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len_x, seq_len_y,
+                     regressor, timedistributed, columns_to_scale, columns_to_forecast, filters,
+                     train_test_split, padding_size)
+
+
+if __name__ == "__main__":
+    main()
