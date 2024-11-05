@@ -1,5 +1,5 @@
 import keras
-from model import RegressorModel
+from models_repo.model import RegressorModel
 
 
 class LinearRegressor(RegressorModel):

@@ -4,7 +4,7 @@ from typing import List, Tuple
 import keras
 import numpy as np
 
-from libV2 import apply_filter
+from .libV2 import apply_filter
 
 
 class CustomGenerator(keras.utils.Sequence):

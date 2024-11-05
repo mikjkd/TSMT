@@ -2,7 +2,7 @@ import keras
 from keras import Model
 from keras.src.layers import LSTM, Dense, TimeDistributed
 
-from model import RegressorModel
+from .model import RegressorModel
 
 
 class LSTMRegressor(RegressorModel):

@@ -4,10 +4,10 @@ import os.path
 from keras.src.optimizers import Adam
 from sklearn.metrics import mean_absolute_error
 
-import eval_model
+from eval_model import *
 from data_generator import BaseDataset
 from dataset import DatasetGenerator, FillnaTypes, XYType
-from model import ModelTrainer, generate_model_name
+from models_repo.model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor, TDLSTMRegressor
 
 
@@ -133,7 +133,7 @@ def main():
 
     # Model predictions
     lstm_y_preds = regressor.model.predict(X_test_eval)
-    pearsonsval = eval_model.eval(y_test[:, -1], lstm_y_preds[:, -1])
+    pearsonsval = eval(y_test[:, -1], lstm_y_preds[:, -1])
     # Calculate Mean Absolute Error (MAE)
     mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
 

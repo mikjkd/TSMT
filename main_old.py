@@ -3,7 +3,7 @@ from keras.src.optimizers import Adam
 import eval_model
 from data_generator import BaseDataset
 # from dataset import generate_dataset
-from model import ModelTrainer, generate_model_name
+from models_repo.model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor
 
 if __name__ == '__main__':

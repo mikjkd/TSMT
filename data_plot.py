@@ -4,12 +4,9 @@ Dataset Plotting with scaling
 
 import joblib
 import matplotlib.pyplot as plt
-import pandas as pd
-from math import floor
 
-from data_generator import BaseDataset
-from dataset import DatasetGenerator
-from libV2 import fill_na_mean
+from .data_generator import BaseDataset
+from .dataset import DatasetGenerator
 
 if __name__ == '__main__':
     data_path = 'data'

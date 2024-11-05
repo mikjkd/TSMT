@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import butter, lfilter
 
-from libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR
+from .libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR
 
 
 class ScalerTypes(Enum):
