@@ -385,10 +385,6 @@ def generate_dataset(save):
         },
         'low': {
             'items': [
-                # {'column': 'RSAM', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                # {'column': 'T_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                # {'column': 'Ru_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                # {'column': 'P_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
                 {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
             ],
         }
@@ -414,4 +410,4 @@ def generate_dataset(save):
 
 
 if __name__ == '__main__':
-    generate_dataset(save=False)
+    generate_dataset(save=True)
