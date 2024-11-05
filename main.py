@@ -2,7 +2,6 @@ import json
 import os.path
 
 from keras.src.optimizers import Adam
-from keras.src.saving.saving_api import load_model
 from sklearn.metrics import mean_absolute_error
 
 import eval_model
@@ -126,7 +125,8 @@ def main():
         loss=loss,
         epochs=epochs
     )
-    model = load_model(f'saved_model/{model_name}.x')
+    # loading the best model
+    regressor.load_model(f'saved_model/{model_name}.x')
     # Adjust test set by excluding the overlap
     X_test_eval = X_test  # [padding_size:]
     y_test_eval = y_test  # [padding_size:]
