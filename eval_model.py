@@ -3,9 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import pearsonr
 
-from data_generator import BaseDataset, CustomOpsGenerator
-from model import RegressorModel
-
 
 def scale_preds(preds, scaler_path):
     # Implementazione della predizione
@@ -73,29 +70,13 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers=False, scaler_path='scalers/
     return corr
 
 
-def eval(model_name, data, scaler_path=None):
+def eval(y_test, y_preds, scaler_path=None):
     if scaler_path is None:
         scaler_path = 'scalers/Rn_olb_scaler.save'
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
-    regressor = RegressorModel(model_name=model_name)
-    regressor.load_model(f'saved_model/{model_name}.x')
-    if type(data) is CustomOpsGenerator:
-        X_test, y_test = BaseDataset.generator_to_Xy(data)
-        # eval_model.eval(model_name)
-        y_preds = regressor.predict(data)
 
-    elif type(data) is tuple:
-        y_preds = regressor.predict(data[0])
-        X_test, y_test = data[0], data[1]
-    else:
-        raise Exception('Wrong data type')
     pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers=False, scaler_path=scaler_path)
     y_true = y_test.reshape(y_test.shape[0], )
-    # plt.figure(figsize=(20, 6), dpi=80)
-    # plt.plot(y_true, label='true')
-    # plt.plot(y_preds, label='preds')
-    # plt.legend()
-    # plt.show()
 
     scaled_preds = scale_preds(y_preds, scaler_path)
     scaled_true = scale_preds(y_true, scaler_path)

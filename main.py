@@ -9,7 +9,7 @@ import eval_model
 from data_generator import BaseDataset
 from dataset import DatasetGenerator, FillnaTypes, XYType
 from model import ModelTrainer, generate_model_name
-from models_repo.LSTMRegressor import LSTMRegressor
+from models_repo.LSTMRegressor import LSTMRegressor, TDLSTMRegressor
 
 
 def save_results():
@@ -25,6 +25,7 @@ def save_results():
             'model_description': regressor.description()
         },
         'dataset_features': {
+            'time_distributed': timedistributed,
             'filler_type': FillnaTypes.MEAN.value,
             'input_columns': columns_to_scale,
             'forecast_column': columns_to_forecast,
@@ -72,7 +73,6 @@ if __name__ == '__main__':
             ],
         }
     }
-
     seq_len_x = 30
     seq_len_y = 1
     data_path = 'data/olb_msa_full.csv'
@@ -88,10 +88,12 @@ if __name__ == '__main__':
     dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame()
+    timedistributed = False
     (X_train, y_train), (X_test, y_test) = dataset_generator.generate_XY(df=df,
                                                                          columns_to_scale=columns_to_scale,
                                                                          columns_to_drop=columns_to_drop,
                                                                          columns_to_forecast=columns_to_forecast,
+                                                                         distributed=timedistributed,
                                                                          filters=filters,
                                                                          fill_na_type=FillnaTypes.MEAN,
                                                                          remove_not_known=False,
@@ -101,7 +103,10 @@ if __name__ == '__main__':
     # Divido Train
     (X_train, y_train), (X_valid, y_valid) = BaseDataset.split_train_valid((X_train, y_train), shuffle=True)
     model_name = generate_model_name()
-    regressor = LSTMRegressor(model_name=model_name)
+    if timedistributed:
+        regressor = TDLSTMRegressor(model_name=model_name)
+    else:
+        regressor = LSTMRegressor(model_name=model_name)
     input_shape = (X_train.shape[1], X_train.shape[2])
     output_shape = 1
     regressor.generate_model(input_shape, output_shape)
@@ -109,7 +114,7 @@ if __name__ == '__main__':
     # train model
 
     trainer = ModelTrainer(batch_size=batch_size)
-    epochs = 512
+    epochs = 1024
     trainer.run(
         model=regressor.model,
         model_name=regressor.model_name,
@@ -125,13 +130,12 @@ if __name__ == '__main__':
     y_test_eval = y_test  # [padding_size:]
 
     # Model predictions
-    lstm_y_preds = regressor.model.predict(X_test_eval).reshape(-1)
-
+    lstm_y_preds = regressor.model.predict(X_test_eval)
+    pearsonsval = eval_model.eval(y_test[:, -1], lstm_y_preds[:, -1])
     # Calculate Mean Absolute Error (MAE)
     mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
 
     # Calculate Pearson's correlation => i have a filtered X
-    pearsonsval = eval_model.eval(model_name, (X_test_eval, y_test_eval))
 
     if save:
         save_results()
