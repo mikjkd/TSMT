@@ -31,6 +31,7 @@ pip install -r requirements.txt
 ## Folder Structure
 To organize saved models, scalers, and data files, follow this folder structure:
 
+```text
 TimeSeriesModelingToolkit/
 ├── dataset.py
 ├── data_generator.py
@@ -41,6 +42,7 @@ TimeSeriesModelingToolkit/
 ├── saved_model/
 ├── scalers/
 └── data/
+```
 
 ## Usage
 
