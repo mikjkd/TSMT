@@ -233,7 +233,7 @@ def accuracy(pred, labels):
 
 # split a univariate sequence into samples
 # restituisco anche gli indici di come vengono paginati i dati
-def split_sequence(sequence, n_steps, n_steps_y=1):
+def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
     X, y = list(), list()
     ind_X, ind_Y = list(), list()
     for i in range(len(sequence)):
@@ -243,7 +243,14 @@ def split_sequence(sequence, n_steps, n_steps_y=1):
         if end_ix + n_steps_y > len(sequence):
             break
         # gather input and output parts of the pattern
-        seq_x, seq_y = sequence[i:end_ix], sequence[end_ix:end_ix + n_steps_y]
+        seq_x = sequence[i:end_ix]
+        if distributed:
+            seq_y = []
+            for j in range(i + 1, end_ix + 1):
+                seq_y.append(sequence[j:j + n_steps_y])
+            seq_y = np.array(seq_y)
+        else:
+            seq_y = sequence[end_ix:end_ix + n_steps_y]
         # print(seq_x,seq_y)
         X.append(seq_x)
         y.append(seq_y)

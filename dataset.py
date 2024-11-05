@@ -151,6 +151,7 @@ class DatasetGenerator:
     """
 
     def __generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
+                      distributed,
                       cast_values=True,
                       remove_not_known=False,
                       scaler_type=ScalerTypes.MINMAX,
@@ -210,16 +211,21 @@ class DatasetGenerator:
             # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values.astype('float64'), self.seq_len_x,
                                             self.seq_len_y)
-            _, Y, _, ind_Y = split_sequence(target_frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
+            _, Y, _, ind_Y = split_sequence(target_frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y,
+                                            distributed=distributed)
         else:
             # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values, self.seq_len_x,
                                             self.seq_len_y)
-            _, Y, _, ind_Y = split_sequence(target_frame_drop.values, self.seq_len_x, self.seq_len_y)
+            _, Y, _, ind_Y = split_sequence(target_frame_drop.values, self.seq_len_x, self.seq_len_y,
+                                            distributed=distributed)
 
         ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in tct]
-        Y = Y[:, :, ctfs]
-        # pagino il dataset e lo salvo nell'apposita cartella
+        if not distributed:
+            Y = Y[:, :, ctfs]
+        else:
+            Y = Y[:, :, :, ctfs]
+            Y = Y.reshape(Y.shape[0], Y.shape[1], 1)
 
         # rimuovo i valori che non conosco nell'outuput, questo serve a non provare a forecastare valori
         # i buchi della serie che sono stati riempiti dal fillna(0)
@@ -243,7 +249,7 @@ class DatasetGenerator:
                     scaler_type=ScalerTypes.MINMAX,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                     type: XYType = XYType.TRAIN,
-                    train_test_split=0.8, padding_size=0):
+                    train_test_split=0.8, padding_size=0, distributed=False):
         if type == XYType.TRAIN or type == XYType.TEST:
             X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
                                       columns_to_forecast=columns_to_forecast, filters=filters,
@@ -251,7 +257,7 @@ class DatasetGenerator:
                                       remove_not_known=remove_not_known,
                                       scaler_type=scaler_type,
                                       fill_na_type=fill_na_type,
-                                      type=type)
+                                      type=type, distributed=distributed)
             return X, y
         elif type == XYType.TRAINTEST:
             train_df = df[:int(len(df) * train_test_split)]
@@ -264,7 +270,7 @@ class DatasetGenerator:
                                                   remove_not_known=remove_not_known,
                                                   scaler_type=scaler_type,
                                                   fill_na_type=fill_na_type,
-                                                  type=XYType.TRAIN)
+                                                  type=XYType.TRAIN, distributed=distributed)
             # il padding_size in TRAINTEST viene utilizzato per una tecnica chiamata Alignment Buffer.
             # Questo buffer, composto dalle ultime 20 righe del training test posizionate prima del test
             # consente una migliore transizione della finestra, evitando un fenomeno che si chiama Boundary Effect.
@@ -285,7 +291,7 @@ class DatasetGenerator:
                                                 remove_not_known=remove_not_known,
                                                 scaler_type=scaler_type,
                                                 fill_na_type=fill_na_type,
-                                                type=XYType.TEST)
+                                                type=XYType.TEST, distributed=distributed)
             return (X_train, y_train), (X_test, y_test)
         else:
             raise Exception("Wrong XY generation type")
