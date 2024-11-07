@@ -46,8 +46,7 @@ class XYType(Enum):
 class DatasetGenerator:
     def __init__(self, columns, seq_len_x, seq_len_y, data_path, encoders, scaler_path):
         self.columns = columns
-        self.seq_len_x = seq_len_x
-        self.seq_len_y = seq_len_y
+
         self.data_path = data_path
         self.encoders = encoders
         self.scaler_path = scaler_path
