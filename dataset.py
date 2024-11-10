@@ -44,9 +44,10 @@ class XYType(Enum):
 
 
 class DatasetGenerator:
-    def __init__(self, columns, seq_len_x, seq_len_y, data_path, encoders, scaler_path):
+    def __init__(self, columns, data_path, encoders, scaler_path):
         self.columns = columns
-
+        self.seq_len_x = 0
+        self.seq_len_y = 0
         self.data_path = data_path
         self.encoders = encoders
         self.scaler_path = scaler_path
@@ -242,13 +243,15 @@ class DatasetGenerator:
         # ripristino i valori iniziali
         return X, Y
 
-    def generate_XY(self, df, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
+    def generate_XY(self, df, seq_len_x, seq_len_y, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
                     cast_values=True,
                     remove_not_known=False,
                     scaler_type=ScalerTypes.MINMAX,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                     type: XYType = XYType.TRAIN,
                     train_test_split=0.8, padding_size=0, distributed=False):
+        self.seq_len_x = seq_len_x
+        self.seq_len_y = seq_len_y
         if type == XYType.TRAIN or type == XYType.TEST:
             X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
                                       columns_to_forecast=columns_to_forecast, filters=filters,

@@ -97,11 +97,12 @@ class PredictConfig:
 
 
 class RegressorModel:
-    def __init__(self, model_name, model=None, history=None):
+    def __init__(self, model_name, model_path = None, model=None, history=None):
         self.model: Optional[keras.Model] = model
         self.model_name: str = model_name
         self.history: Optional[History] = history
         self.pred_config: PredictConfig = PredictConfig(PredMode.STD)
+        self.model_path = model_path
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
         pass
@@ -111,9 +112,13 @@ class RegressorModel:
         if pred_mode is PredMode.FR:
             self.pred_config.options = options
 
-    def load_model(self, model_path):
-        self.model = load_model(model_path)
-        return self.model
+    def load_model(self, model_path = None):
+        if self.model_path is not None:
+            path = f'{self.model_path}/{self.model_name}.x'
+        else:
+            path = f'{model_path}/{self.model_name}.x'
+        self.model = load_model(path)
+        #return self.model
 
     def predict(self, X):
         # Implementazione della predizione
