@@ -118,7 +118,7 @@ class RegressorModel:
         else:
             path = f'{model_path}/{self.model_name}.x'
         self.model = load_model(path)
-        #return self.model
+        return self.model
 
     def predict(self, X):
         # Implementazione della predizione

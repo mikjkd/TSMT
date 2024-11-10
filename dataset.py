@@ -9,6 +9,7 @@ import pandas as pd
 from scipy.signal import butter, lfilter
 
 from .libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR
+from typing import Optional
 
 
 class ScalerTypes(Enum):
@@ -51,6 +52,16 @@ class DatasetGenerator:
         self.data_path = data_path
         self.encoders = encoders
         self.scaler_path = scaler_path
+        # genXY parameters
+        self.columns_to_scale = None
+        self.columns_to_drop = None
+        self.columns_to_forecast = None
+        self.distributed = None
+        self.filters = None
+        self.fill_na_type = FillnaTypes.MEAN
+        self.remove_not_known = False
+        self.type = XYType.TEST
+        self.train_test_split = None
 
     def load_XY(self):
         pass
@@ -66,6 +77,23 @@ class DatasetGenerator:
             df = df[df['date'] <= end_date]
 
         return df
+
+    def set_dataset_values(self, seq_len_x, seq_len_y, columns_to_scale, columns_to_drop,
+                           columns_to_forecast, distributed, filters, train_test_split,
+                           fill_na_type=FillnaTypes.MEAN,
+                           remove_not_known=False,
+                           type=XYType.TEST):
+        self.seq_len_x = seq_len_x
+        self.seq_len_y = seq_len_y
+        self.columns_to_scale = columns_to_scale
+        self.columns_to_drop = columns_to_drop
+        self.columns_to_forecast = columns_to_forecast
+        self.distributed = distributed
+        self.filters = filters
+        self.fill_na_type = fill_na_type
+        self.remove_not_known = remove_not_known
+        self.type = type
+        self.train_test_split = train_test_split
 
     def __scale_df(self, frame, columns_to_scale=None, scaler_names=None,
                    scalerType: ScalerTypes = ScalerTypes.MINMAX):
@@ -243,13 +271,21 @@ class DatasetGenerator:
         # ripristino i valori iniziali
         return X, Y
 
-    def generate_XY(self, df, seq_len_x, seq_len_y, columns_to_scale, columns_to_drop, columns_to_forecast, filters,
+    def generate_XY(self, df,
+                    seq_len_x: Optional, seq_len_y: Optional,
+                    columns_to_scale: Optional, columns_to_drop: Optional,
+                    columns_to_forecast: Optional, filters: Optional,
                     cast_values=True,
                     remove_not_known=False,
                     scaler_type=ScalerTypes.MINMAX,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                     type: XYType = XYType.TRAIN,
                     train_test_split=0.8, padding_size=0, distributed=False):
+        # da fare ..
+        # if seq_len_x is not None:
+        #    self.seq_len_x = seq_len_x
+        # if seq_len_y is not None:
+        #    self.seq_len_y
         self.seq_len_x = seq_len_x
         self.seq_len_y = seq_len_y
         if type == XYType.TRAIN or type == XYType.TEST:
