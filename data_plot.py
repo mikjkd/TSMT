@@ -5,8 +5,8 @@ Dataset Plotting with scaling
 import joblib
 import matplotlib.pyplot as plt
 
-from .data_generator import BaseDataset
-from .dataset import DatasetGenerator
+from .data_generator import DataGenerator
+from .dataset import Dataset
 
 if __name__ == '__main__':
     data_path = 'data'
@@ -19,7 +19,7 @@ if __name__ == '__main__':
         In questo punto carico i dati con i generator e li trasformo in X,y
     """
     # dataset
-    dataset = BaseDataset(data_path=dataset_path)
+    dataset = DataGenerator(data_path=dataset_path)
     # carico i dati, li divido e creo i generators
     train_filenames, test_filenames = dataset.load_data(shuffle=False)
     # li carico già divisi, non serve più splittarli
@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     scalers= [joblib.load(f'scalers/{s}_scaler.save') for s in scaler_names]
     for i in range(X_train.shape[2]):
-        rn = DatasetGenerator.get_ts_from_ds(X_train, i)
+        rn = Dataset.get_ts_from_ds(X_train, i)
         rn_scaled = scalers[i].inverse_transform(rn.reshape(-1, 1)).reshape(len(rn))
         fig, axs = plt.subplots(2,figsize=(20, 6))
         axs[0].plot(rn)

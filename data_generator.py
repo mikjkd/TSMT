@@ -93,7 +93,7 @@ class CustomOpsGenerator(CustomGenerator):
         return x_data, y_data
 
 
-class BaseDataset:
+class DataGenerator:
     def __init__(self, data_path = None, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
         self.data_path = data_path
         self.train_data_path = f'{self.data_path}/{train_data_name}'

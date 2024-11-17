@@ -37,6 +37,24 @@ class XYType(Enum):
     TRAINTEST = 'TrainTest'
 
 
+class Constants(Enum):
+    PADDING_SIZE = 'padding_size'
+    SAVE = 'save'
+    TRAINING_TYPE = 'training_type'
+    TRAIN_TEST_SPLIT = 'train_test_split'
+    FILTERS = 'filters'
+    SCALERS_PATH = 'scalers'
+    ENCODERS_PATH = 'encoders'
+    BASE_PATH = 'base_path'
+    DATA_PATH = 'data_path'
+    SEQ_LEN_X = 'seq_len_x'
+    SEQ_LEN_Y = 'seq_len_y'
+    COLUMNS = 'columns'
+    COLUMNS_TO_SCALE = 'columns_to_scale'
+    COLUMNS_TO_DROP = 'columns_to_drop'
+    COLUMNS_TO_FORECAST = 'columns_to_forecast'
+
+
 """
     DatasetGenerator Class provides a set of methods that process a DataFrame input
     generating X,y tensors for a supervised model training.
@@ -44,7 +62,7 @@ class XYType(Enum):
 """
 
 
-class DatasetGenerator:
+class Dataset:
     def __init__(self, columns, data_path, encoders, scaler_path):
         self.columns = columns
         self.seq_len_x = 0
@@ -67,7 +85,6 @@ class DatasetGenerator:
             df = df[df['date'] <= end_date]
 
         return df
-
 
     def __scale_df(self, frame, columns_to_scale=None, scaler_names=None,
                    scalerType: ScalerTypes = ScalerTypes.MINMAX):
@@ -350,12 +367,11 @@ class DatasetGenerator:
         rn = np.append(rn, X[1:, -1, target_col])
         return rn
 
-
-def generate_dataset(save):
-    data_path = 'data/olb_msa_full.csv'
-    base_path = 'dataset/'
-    encoders = 'encoders/'
-    scalers = 'scalers/'
+def generate_dataset(configuration):
+    data_path = configuration[Constants.DATA_PATH]  # 'data/olb_msa_full.csv'
+    base_path = configuration[Constants.BASE_PATH]  # dataset/'
+    encoders = configuration[Constants.ENCODERS_PATH]  # 'encoders/'
+    scalers = configuration[Constants.SCALERS_PATH]  # 'scalers/'
 
     if not os.path.exists(base_path):
         os.mkdir(base_path)
@@ -369,17 +385,58 @@ def generate_dataset(save):
         os.mkdir(scalers)
         print(f'{scalers} creata')
 
-    seq_len_x = 30
-    seq_len_y = 1
+    seq_len_x = configuration[Constants.SEQ_LEN_X]  # 30
+    seq_len_y = configuration[Constants.SEQ_LEN_Y]  # 1
 
-    columns = ['date', 'RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb', 'T_msa',
-               'Ru_msa', 'P_msa', 'Rn_msa', 'displacement (cm)',
-               'background seismicity']
-    columns_to_scale = ['RSAM', 'T_olb', 'Ru_olb', 'P_olb', 'Rn_olb']
-    columns_to_drop = ['date', 'displacement (cm)',
-                       'background seismicity', 'T_msa',
-                       'Ru_msa', 'P_msa', 'Rn_msa']
-    columns_to_forecast = ['Rn_olb']
+    columns = configuration[Constants.COLUMNS]
+    columns_to_scale = configuration[Constants.COLUMNS_TO_SCALE]
+    columns_to_drop = configuration[Constants.COLUMNS_TO_DROP]
+    columns_to_forecast = configuration[Constants.COLUMNS_TO_FORECAST]
+    # filtering settings
+    filters = configuration[Constants.FILTERS]
+
+    dataset_generator = Dataset(columns=columns, data_path=data_path,
+                                encoders=encoders, scaler_path=scalers)
+    df = dataset_generator.generate_frame()
+    training_type = configuration[Constants.TRAINING_TYPE]  # XYType.TRAIN
+    if training_type == XYType.TRAIN or training_type == XYType.TEST:
+        X, y = dataset_generator.generate_XY(df=df, seq_len_x=seq_len_x, seq_len_y=seq_len_y,
+                                             columns_to_scale=columns_to_scale,
+                                             columns_to_drop=columns_to_drop,
+                                             columns_to_forecast=columns_to_forecast,
+                                             filters=filters,
+                                             fill_na_type=FillnaTypes.MEAN, remove_not_known=False,
+                                             type=training_type)
+        if configuration[Constants.SAVE]:
+            dataset_generator.save_XY(X, y,
+                                      base_path,
+                                      'train' if
+                                      configuration[Constants.TRAINING_TYPE] == XYType.TRAIN
+                                      else 'test')
+    else:
+        (X_train, y_train), (X_test, y_test) = dataset_generator.generate_XY(df=df, seq_len_x=seq_len_x,
+                                                                             seq_len_y=seq_len_y,
+                                                                             columns_to_scale=columns_to_scale,
+                                                                             columns_to_drop=columns_to_drop,
+                                                                             columns_to_forecast=columns_to_forecast,
+                                                                             filters=filters,
+                                                                             fill_na_type=FillnaTypes.MEAN,
+                                                                             train_test_split=configuration[
+                                                                                 Constants.TRAIN_TEST_SPLIT],
+                                                                             remove_not_known=False,
+                                                                             padding_size=
+                                                                             configuration[Constants.PADDING_SIZE],
+                                                                             type=training_type)
+        if configuration[Constants.SAVE]:
+            dataset_generator.save_XY(X_train, y_train, base_path, 'train')
+            dataset_generator.save_XY(X_test, y_test, base_path, 'test')
+
+
+if __name__ == '__main__':
+    columns = ['Start', 'End', 'Open', 'High', 'Low', 'Close', 'Volume', 'Market Cap']
+    columns_to_forecast = ['Low']
+    columns_to_scale = ['Open', 'High', 'Low', 'Close', 'Volume', 'Market Cap']
+    columns_to_drop = ['Start', 'End']
     # filtering settings
     order = 1  # Order of the filter
     lp_cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
@@ -387,34 +444,49 @@ def generate_dataset(save):
     filters = {
         'high': {
             'items': [
-                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': hp_cutoff}}
+                {'column': 'Open', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'High', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'Low', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'Close', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'Volume', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'Market Cap', 'parameters': {'order': order, 'cutoff': hp_cutoff}}
             ],
         },
         'low': {
             'items': [
-                {'column': 'Rn_olb', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
+                {'column': 'Open', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'High', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Low', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Close', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Volume', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'Market Cap', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
             ],
         }
     }
-
-    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
-                                         encoders=encoders, scaler_path=scalers)
-    df = dataset_generator.generate_frame()
-    X, y = dataset_generator.generate_XY(df=df, columns_to_scale=columns_to_scale,
-                                         columns_to_drop=columns_to_drop,
-                                         columns_to_forecast=columns_to_forecast,
-                                         filters=filters,
-                                         fill_na_type=FillnaTypes.MEAN, remove_not_known=False, type=XYType.TRAIN)
+    seq_len_x = 30
+    seq_len_y = 1
+    data_path = 'data/bitcoin.csv'
+    base_path = 'dataset/'
+    encoders = 'encoders/'
+    scalers = 'scalers/'
     train_test_split = 0.75
-    # divisione train e test
-    X_train, y_train = X[:int(len(X) * train_test_split)], y[:int(len(y) * train_test_split)]
-    X_test, y_test = X[int(len(X) * train_test_split):], y[int(len(y) * train_test_split):]
+    save = True
+    padding_size = seq_len_x
 
-    # salvataggio trainin e test set
-    if save:
-        dataset_generator.save_XY(X_train, y_train, base_path, 'train')
-        dataset_generator.save_XY(X_test, y_test, base_path, 'test')
-
-
-if __name__ == '__main__':
-    generate_dataset(save=True)
+    generate_dataset({
+        Constants.TRAINING_TYPE: XYType.TRAINTEST,
+        Constants.DATA_PATH: data_path,
+        Constants.BASE_PATH: base_path,
+        Constants.ENCODERS_PATH: encoders,
+        Constants.SCALERS_PATH: scalers,
+        Constants.TRAIN_TEST_SPLIT: train_test_split,
+        Constants.SAVE: save,
+        Constants.PADDING_SIZE: padding_size,
+        Constants.SEQ_LEN_X: seq_len_x,
+        Constants.SEQ_LEN_Y: seq_len_y,
+        Constants.COLUMNS: columns,
+        Constants.COLUMNS_TO_DROP: columns_to_drop,
+        Constants.COLUMNS_TO_SCALE: columns_to_scale,
+        Constants.COLUMNS_TO_FORECAST: columns_to_forecast,
+        Constants.FILTERS: filters
+    })

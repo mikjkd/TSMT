@@ -1,7 +1,7 @@
 from keras.src.optimizers import Adam
 
 import eval_model
-from data_generator import BaseDataset
+from data_generator import DataGenerator
 # from dataset import generate_dataset
 from models_repo.model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     learning_rate = 0.001
     loss = 'mae'
     # dataset
-    dataset = BaseDataset(data_path=data_path)
+    dataset = DataGenerator(data_path=data_path)
     # trainer
     trainer = ModelTrainer(batch_size=batch_size)
     # carico i dati, li divido e creo i generators
