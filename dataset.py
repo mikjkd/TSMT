@@ -240,11 +240,7 @@ class Dataset:
                                             distributed=distributed)
 
         ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in tct]
-        if not distributed:
-            Y = Y[:, :, ctfs]
-        else:
-            Y = Y[:, :, :, ctfs]
-            Y = Y.reshape(Y.shape[0], Y.shape[1], 1)
+        Y = Y[:, :, ctfs]
 
         # rimuovo i valori che non conosco nell'outuput, questo serve a non provare a forecastare valori
         # i buchi della serie che sono stati riempiti dal fillna(0)
@@ -366,6 +362,7 @@ class Dataset:
         rn = X[0, :, target_col]
         rn = np.append(rn, X[1:, -1, target_col])
         return rn
+
 
 def generate_dataset(configuration):
     data_path = configuration[Constants.DATA_PATH]  # 'data/olb_msa_full.csv'

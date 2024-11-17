@@ -249,6 +249,7 @@ def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
             for j in range(i + 1, end_ix + 1):
                 seq_y.append(sequence[j:j + n_steps_y])
             seq_y = np.array(seq_y)
+            seq_y = seq_y.reshape(seq_y.shape[0], seq_y.shape[-1])
         else:
             seq_y = sequence[end_ix:end_ix + n_steps_y]
         # print(seq_x,seq_y)
