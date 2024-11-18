@@ -97,7 +97,7 @@ class PredictConfig:
 
 
 class RegressorModel:
-    def __init__(self, model_name, model_path = None, model=None, history=None):
+    def __init__(self, model_name, model_path=None, model=None, history=None):
         self.model: Optional[keras.Model] = model
         self.model_name: str = model_name
         self.history: Optional[History] = history
@@ -112,12 +112,13 @@ class RegressorModel:
         if pred_mode is PredMode.FR:
             self.pred_config.options = options
 
-    def load_model(self, model_path = None):
+    def load_model(self, model_path=None, custom_objects=None):
         if self.model_path is not None:
             path = f'{self.model_path}/{self.model_name}.x'
         else:
             path = f'{model_path}/{self.model_name}.x'
-        self.model = load_model(path)
+
+        self.model = load_model(path, custom_objects=custom_objects)
         return self.model
 
     def predict(self, X):

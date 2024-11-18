@@ -94,7 +94,7 @@ class CustomOpsGenerator(CustomGenerator):
 
 
 class DataGenerator:
-    def __init__(self, data_path = None, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
+    def __init__(self, data_path=None, train_data_name='train_filenames.npy', test_data_name='test_filenames.npy'):
         self.data_path = data_path
         self.train_data_path = f'{self.data_path}/{train_data_name}'
         self.test_data_path = f'{self.data_path}/{test_data_name}'
@@ -116,7 +116,7 @@ class DataGenerator:
         # Implementazione della divisione dei dati
         # train_test split
         if type(data) is tuple:
-            print('tuple')
+            # print('tuple')
             X = data[0]
             y = data[1]
             if shuffle:

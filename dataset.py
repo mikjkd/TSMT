@@ -101,6 +101,7 @@ class Dataset:
                 frame[cts] = scalers[idx].transform(
                     frame[cts].values.reshape(-1, 1).astype('float64'))
         else:
+
             # creo gli scalers in base al tipo e li salvo
             for cts in columns_to_scale:
                 if scalerType == ScalerTypes.MINMAX:
@@ -124,8 +125,10 @@ class Dataset:
 
     def __get_na_cols(self, df, columns_to_forecast):
         na_cols = np.isnan(df[columns_to_forecast].values)
-        df = df.assign(na_cols=na_cols)
-        return df, na_cols
+        new_df = df.copy()
+        for idx, c in enumerate(columns_to_forecast):
+            new_df[f'na_{c}'] = na_cols[:, idx]
+        return new_df, na_cols
 
     def __fill_na(self, df, fill_na_type: FillnaTypes):
         if fill_na_type == FillnaTypes.SIMPLE:
@@ -176,6 +179,7 @@ class Dataset:
                       scaler_type=ScalerTypes.MINMAX,
                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                       type: XYType = XYType.TRAIN):
+        print(f'Start generation XY for  {"Train" if type == XYType.TRAIN else "Test"} ...')
         # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
         # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
 
@@ -184,7 +188,7 @@ class Dataset:
         tctd = columns_to_drop.copy()
         tct = columns_to_forecast.copy()
         # Adding the flag to the NAs columns
-        df, na_cols = self.__get_na_cols(df, tct[0])
+        df, na_cols = self.__get_na_cols(df, tct)
         ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
         # valori NA
         # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
@@ -216,7 +220,7 @@ class Dataset:
                                     scalerType=scaler_type)
 
         # creo le sequenze per la rete
-        tctd.append('na_cols')
+        tctd.extend([f'na_{c}' for c in tct])
         target_columns_to_drop = tctd.copy()
         # se inplace è false, utilizzo anche le colonne filtrate come dataset
         # if inplace is False:
@@ -225,7 +229,6 @@ class Dataset:
         target_frame_drop = frame.drop(tctd, axis=1)
 
         # print(filtered_frame_drop.columns, target_frame_drop.columns)
-
         if cast_values:
             # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values.astype('float64'), self.seq_len_x,
@@ -254,8 +257,7 @@ class Dataset:
             rp = np.where(na_cols[ind_Y.reshape(ind_Y.shape[0])] == True)[0]
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
-
-        # ripristino i valori iniziali
+        print("Done!")
         return X, Y
 
     def generate_XY(self, df,

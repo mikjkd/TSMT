@@ -368,7 +368,7 @@ def fill_na_mean(df, target_columns: List):
                         pass
                 frame.at[zp, c] = (v0 + v1) / 2
         except Exception as e:
-            print(f'{c}: {e}')
+            # print(f'{c}: {e}')
             pass
     return frame
 
