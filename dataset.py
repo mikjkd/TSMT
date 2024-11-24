@@ -243,7 +243,8 @@ class Dataset:
                                             distributed=distributed)
 
         ctfs = [list(target_frame_drop.columns).index(ctf) for ctf in tct]
-        Y = Y[:, :, ctfs]
+        if self.seq_len_y > 0:
+            Y = Y[:, :, ctfs]
 
         # rimuovo i valori che non conosco nell'outuput, questo serve a non provare a forecastare valori
         # i buchi della serie che sono stati riempiti dal fillna(0)
