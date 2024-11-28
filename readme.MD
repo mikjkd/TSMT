@@ -11,7 +11,7 @@ A versatile toolkit for analyzing, preprocessing, and modeling time-series data.
 
 ## Repository Structure
 
-- **`dataset.py`**: Contains the `DatasetGenerator` class for data preprocessing, scaling, and sequence generation for model training.
+- **`dataset.py`**: Contains the `Dataset` class for data preprocessing, scaling, and sequence generation for model training.
 - **`data_generator.py`**: Manages data batching, enabling efficient loading for large time-series datasets.
 - **`LSTMRegressor.py`**: Implements various LSTM models, including both standard and `TimeDistributed` architectures.
 - **`main.py`**: Configures and initiates model training and evaluation, allowing for easy experimentation with different models and settings.

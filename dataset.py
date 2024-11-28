@@ -368,7 +368,7 @@ class Dataset:
 
 
 def generate_dataset(configuration):
-    data_path = configuration[Constants.DATA_PATH]  # 'data/olb_msa_full.csv'
+    data_path = configuration[Constants.DATA_PATH]  # data/dataset.csv
     base_path = configuration[Constants.BASE_PATH]  # dataset/'
     encoders = configuration[Constants.ENCODERS_PATH]  # 'encoders/'
     scalers = configuration[Constants.SCALERS_PATH]  # 'scalers/'
@@ -433,10 +433,10 @@ def generate_dataset(configuration):
 
 
 if __name__ == '__main__':
-    columns = ['Start', 'End', 'Open', 'High', 'Low', 'Close', 'Volume', 'Market Cap']
-    columns_to_forecast = ['Low']
-    columns_to_scale = ['Open', 'High', 'Low', 'Close', 'Volume', 'Market Cap']
-    columns_to_drop = ['Start', 'End']
+    columns = ['A', 'B', 'C', 'D']
+    columns_to_forecast = ['C']
+    columns_to_scale = ['A', 'B', 'C']
+    columns_to_drop = ['D']
     # filtering settings
     order = 1  # Order of the filter
     lp_cutoff = 0.3  # Cutoff frequency as a fraction of the Nyquist rate (0 to 1)
@@ -444,28 +444,21 @@ if __name__ == '__main__':
     filters = {
         'high': {
             'items': [
-                {'column': 'Open', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
-                {'column': 'High', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
-                {'column': 'Low', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
-                {'column': 'Close', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
-                {'column': 'Volume', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
-                {'column': 'Market Cap', 'parameters': {'order': order, 'cutoff': hp_cutoff}}
+                {'column': 'A', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'B', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
+                {'column': 'C', 'parameters': {'order': order, 'cutoff': hp_cutoff}},
             ],
         },
         'low': {
             'items': [
-                {'column': 'Open', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                {'column': 'High', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                {'column': 'Low', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                {'column': 'Close', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                {'column': 'Volume', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
-                {'column': 'Market Cap', 'parameters': {'order': order, 'cutoff': lp_cutoff}}
+                {'column': 'A', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
+                {'column': 'D', 'parameters': {'order': order, 'cutoff': lp_cutoff}},
             ],
         }
     }
     seq_len_x = 30
     seq_len_y = 1
-    data_path = 'data/bitcoin.csv'
+    data_path = 'data/your_data.csv'
     base_path = 'dataset/'
     encoders = 'encoders/'
     scalers = 'scalers/'
