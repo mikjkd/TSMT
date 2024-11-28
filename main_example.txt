@@ -86,11 +86,12 @@ def main():
     loss = 'mae'
     save = True
     padding_size = 30
-    dataset_generator = DatasetGenerator(columns=columns, seq_len_x=seq_len_x, seq_len_y=seq_len_y, data_path=data_path,
+    dataset_generator = DatasetGenerator(columns=columns,  data_path=data_path,
                                          encoders=encoders, scaler_path=scalers)
     df = dataset_generator.generate_frame()
     timedistributed = False
     (X_train, y_train), (X_test, y_test) = dataset_generator.generate_XY(df=df,
+                                                                         seq_len_x=seq_len_x, seq_len_y=seq_len_y,
                                                                          columns_to_scale=columns_to_scale,
                                                                          columns_to_drop=columns_to_drop,
                                                                          columns_to_forecast=columns_to_forecast,
