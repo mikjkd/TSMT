@@ -15,7 +15,7 @@ A versatile toolkit for analyzing, preprocessing, and modeling time-series data.
 - **`data_generator.py`**: Manages data batching, enabling efficient loading for large time-series datasets.
 - **`LSTMRegressor.py`**: Implements various LSTM models, including both standard and `TimeDistributed` architectures.
 - **`model.py`**: Defines the `ModelTrainer` class, which supports early stopping, model checkpointing, and learning rate adjustments.
-- **`eval_model.py`**: Provides evaluaion functions to assess model performance, including metrics such as MAE and Pearson’s correlation.
+- **`eval_model.py`**: Provides evaluation functions to assess model performance, including metrics such as MAE and Pearson’s correlation.
 
 ## Setup
 
