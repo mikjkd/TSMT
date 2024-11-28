@@ -49,7 +49,7 @@ TimeSeriesModelingToolkit/
 To integrate TSMT into your project, clone the repository into your project directory:
 
 ```bash
-git clone <TSMT-repository-url> TSMT
+git clone git@github.com:mikjkd/TSMT.git TSMT
 ```
 
 
