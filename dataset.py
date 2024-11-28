@@ -93,7 +93,7 @@ class Dataset:
             return
         frame = frame.copy()
         if scaler_names:
-            # ho già gli scalers, li carico e li utilizzo
+            # load provided scalers
             scalers = []
             for scaler_name in scaler_names:
                 scalers.append(joblib.load(scaler_name))
@@ -101,14 +101,13 @@ class Dataset:
                 frame[cts] = scalers[idx].transform(
                     frame[cts].values.reshape(-1, 1).astype('float64'))
         else:
-
-            # creo gli scalers in base al tipo e li salvo
+            # define new scalers
             for cts in columns_to_scale:
                 if scalerType == ScalerTypes.MINMAX:
                     tmp_scaler = minMaxScale(frame, cts)
                 else:
                     tmp_scaler = standardScale(frame, cts)
-                # salvo lo scaler
+                # save the scaler
                 joblib.dump(tmp_scaler, self.scaler_path + cts + '_scaler.save')
         return frame
 
@@ -180,63 +179,48 @@ class Dataset:
                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                       type: XYType = XYType.TRAIN):
         print(f'Start generation XY for  {"Train" if type == XYType.TRAIN else "Test"} ...')
-        # frame contiene le informazioni passate e viene processato dalla rete per creare delle predizioni
-        # info frame contiene le informazioni che la rete sfrutta per migliorare le predizioni
-
-        # copio le variabili altrimenti fuori dalla funzione risultano modificate e creano degli errori
         tcts = columns_to_scale.copy()
         tctd = columns_to_drop.copy()
         tct = columns_to_forecast.copy()
         # Adding the flag to the NAs columns
         df, na_cols = self.__get_na_cols(df, tct)
-        ## filling na part -> A differenza del dataframe che può contenere valori vuoti (NaN), la sequenza (X,y) non può avere
-        # valori NA
+
         # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
         # knowing the fact that we need to fill, a good way is to add a column to the df, saying that a specific value
         # has been filled with another value. That helps in post processing part
         df = self.__fill_na(df, fill_na_type=fill_na_type)
-        # Filtro IIR
         inplace = False
-        # frame = self.__filter(df=df, colums_to_filter=tctf, inplace=inplace)
+
         frame = self.__multi_filter(df=df, filters=filters)
         if inplace is False:
-            # Siccome ho creato nuove colonne (filtered_...), se questi valori esistono nel set da scalare
-            # allora aggiungo filtered_... in columns to scale.
+            # update columns to scale according to the new filtered columns
             for k in filters.keys():
                 items = filters[k]['items']
                 for i in items:
                     if i["column"] in tcts:
                         tcts.append(f'{k}_filtered_{i["column"]}')
-        # scalo le features e rimuovo quelle inutili
-        # scalo a seconda del Training o Test mode
+        # scaling features, depends on XYType
         if type == XYType.TRAIN:
-            # se è training, genero gli scalers
+            # if I'm training, I'll generate the scalers
             frame = self.__scale_df(frame, columns_to_scale=tcts,
                                     scalerType=scaler_type)
         elif type == XYType.TEST:
-            # in caso di test, utilizzo gli scalers precedentemente creati
+            # in test phase I have to use the previously defined scalers
             scaler_names = [f'scalers/{cts}_scaler.save' for cts in tcts]
             frame = self.__scale_df(frame, columns_to_scale=tcts, scaler_names=scaler_names,
                                     scalerType=scaler_type)
 
-        # creo le sequenze per la rete
         tctd.extend([f'na_{c}' for c in tct])
         target_columns_to_drop = tctd.copy()
-        # se inplace è false, utilizzo anche le colonne filtrate come dataset
-        # if inplace is False:
-        #    target_columns_to_drop.extend(tctf)
         filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
         target_frame_drop = frame.drop(tctd, axis=1)
 
-        # print(filtered_frame_drop.columns, target_frame_drop.columns)
         if cast_values:
-            # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y)
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values.astype('float64'), self.seq_len_x,
                                             self.seq_len_y)
             _, Y, _, ind_Y = split_sequence(target_frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y,
                                             distributed=distributed)
         else:
-            # X, Y, ind_X, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y)
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values, self.seq_len_x,
                                             self.seq_len_y)
             _, Y, _, ind_Y = split_sequence(target_frame_drop.values, self.seq_len_x, self.seq_len_y,
@@ -246,15 +230,13 @@ class Dataset:
         if self.seq_len_y > 0:
             Y = Y[:, :, ctfs]
 
-        # rimuovo i valori che non conosco nell'outuput, questo serve a non provare a forecastare valori
-        # i buchi della serie che sono stati riempiti dal fillna(0)
-        # NB: i buchi nell'input sono accettati (X), sono quelli dell'output che creano problemi
-        # per questo si rimuove da Y, di conseguenza, poi vengono tolti anche quegli input che portano
-        # ad un forecast di uno 0
+        # I remove the values I don’t know in the output; this is to avoid trying to forecast values
+        # that are gaps in the series filled with fillna(0)
+        # Note: gaps in the input (X) are accepted; it’s the gaps in the output that cause problems
+        # For this reason, values are removed from Y, and as a consequence, the input values
+        # leading to a forecast of 0 are also removed
+
         if remove_not_known:
-            # na_cols[ind_Y.reshape(ind_Y.shape[0],)] mi restituisce le colonne di na solo nei punti in cui esiste l'output y
-            # scrivendo np.where(na_cols[ind_Y.reshape(ind_Y.shape[0],)] == True) prendo solo i valori in cui
-            # l'output y era NA ed è stato refillato
             rp = np.where(na_cols[ind_Y.reshape(ind_Y.shape[0])] == True)[0]
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
@@ -293,12 +275,11 @@ class Dataset:
                                                   remove_not_known=remove_not_known,
                                                   scaler_type=scaler_type,
                                                   fill_na_type=fill_na_type,
-                                                  type=XYType.TRAIN, distributed=distributed)
-            # il padding_size in TRAINTEST viene utilizzato per una tecnica chiamata Alignment Buffer.
-            # Questo buffer, composto dalle ultime 20 righe del training test posizionate prima del test
-            # consente una migliore transizione della finestra, evitando un fenomeno che si chiama Boundary Effect.
-            # Con questa finestra di buffer è possibile quindi avere una transizione più smooth dal training al test
-            # con condizioni iniziali che hanno un senso nel caso in cui si divide in modo netto il dataset.
+                                                  type=XYType.TRAIN, distributed=distributed)# The padding_size in TRAINTEST is used for a technique called Alignment Buffer.
+            # This buffer, consisting of the last 20 rows of the training set positioned before the test set,
+            # allows for a smoother transition of the window, avoiding a phenomenon called the Boundary Effect.
+            # With this buffer window, it is possible to achieve a smoother transition from training to test,
+            # with meaningful initial conditions in cases where the dataset is split sharply.
             if padding_size > 0:
                 # Create overlap by taking the last 'overlap_size' rows from train_df
                 overlap_df = train_df.iloc[-padding_size:].copy()
@@ -332,33 +313,7 @@ class Dataset:
             with open(f'{base_path}/{fny}', 'wb') as output:
                 pkl.dump(Y[idx], output)
         np.save(f'{base_path}/{filename}_filenames.npy', filenames)
-        print('salvato')
-
-    """
-        metodo per data augmentation:
-        a partire dal dataset X,y generato dalla serie originale,
-        vengono riprodotte num_replies copie dei punti precedenti 
-        affetti da rumore 
-    """
-
-    @staticmethod
-    def augment(X, Y, mean=0, variance=1.0, num_replies=5):
-        sigma = variance ** 0.5
-        new_X = []
-        new_Y = []
-        for n in range(num_replies):
-            for idx, x in enumerate(X):
-                x_gauss = np.random.normal(mean, sigma, (x.shape[0], x.shape[1]))
-                y_gauss = np.random.normal(mean, sigma, (1, 1))
-                new_X.append(x + x_gauss)
-                new_Y.append(Y[idx] + y_gauss)
-        return np.append(X, np.array(new_X), axis=0), np.append(Y, np.array(new_Y), axis=0)
-
-    """
-    target_col = 5
-    unfold del dataset composto da (len(df['Rn_olb'])-30-1, 30, 12) elementi
-    alla serie temporale di partenza
-    """
+        print('saved')
 
     @staticmethod
     def get_ts_from_ds(X, target_col):

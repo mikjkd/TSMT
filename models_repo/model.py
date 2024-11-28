@@ -122,7 +122,6 @@ class RegressorModel:
         return self.model
 
     def predict(self, X):
-        # Implementazione della predizione
         if self.pred_config.mode is PredMode.STD:
             preds = self.model.predict(X)
         elif self.pred_config.mode is PredMode.FR:
@@ -144,8 +143,7 @@ class RegressorModel:
         return preds
 
     def visualize_results(self, actual, predicted):
-        # Implementazione della visualizzazione dei risultati
-        pass
+        raise Exception('Visualization not implemented yet')
 
 
 def generate_model_name():

@@ -1,19 +1,12 @@
-import pickle as pkl
-from datetime import datetime
-from random import shuffle
 from typing import List
 
 import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-# importing the requests library
-import requests
 import tensorflow as tf
-from keras import backend as K
 from keras.callbacks import Callback
 from keras.models import model_from_json
-from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
@@ -232,7 +225,7 @@ def accuracy(pred, labels):
 
 
 # split a univariate sequence into samples
-# restituisco anche gli indici di come vengono paginati i dati
+# returns indices too
 def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
     X, y = list(), list()
     ind_X, ind_Y = list(), list()
@@ -280,67 +273,6 @@ def last_time_step_mse(Y_true, Y_pred):
     return keras.metrics.mean_squared_error(Y_true[:, -1], Y_pred[:, -1])
 
 
-def is_weekend(date):
-    format = '%Y-%m-%d'
-    d = datetime.strptime(date, format)
-    # print(d.weekday())
-    if d.weekday() > 4:
-        # print('Given date is weekend.')
-        return 1
-    else:
-        # print('Given dataset is weekday.')
-        return 0
-
-
-def get_day(date):
-    format = '%Y-%m-%d'
-    d = datetime.strptime(date, format)
-    return d.day
-
-
-def get_month(date):
-    format = '%Y-%m-%d'
-    d = datetime.strptime(date, format)
-    return d.month
-
-
-def get_weekday(date):
-    format = '%Y-%m-%d'
-    d = datetime.strptime(date, format)
-    return d.weekday()
-
-
-def get_year(date):
-    format = '%Y-%m-%d'
-    d = datetime.strptime(date, format)
-    return d.year
-
-
-def oheData(seq, filename, map=None):
-    if map is None:
-        ohe = OneHotEncoder(sparse=False)
-        transformed = ohe.fit_transform(seq.reshape(-1, 1))
-        month_map = {}
-        for idx, a in enumerate(seq):
-            # print(a[0])
-            month_map[a] = transformed[idx]
-        with open(filename, 'wb') as output:
-            pkl.dump(month_map, output)
-    else:
-        transformed = []
-        for idx, a in enumerate(seq):
-            # print(a[0])
-            transformed.append(map[a])
-    return np.array(transformed)
-
-
-"""
-    Problema dei na values nel df:
-    riempio i valori nan con la media dei valori precedenti
-    x[i] = NaN => x[i] = (x[i-1]+x[i+1])/2
-"""
-
-
 def fill_na_mean(df, target_columns: List):
     frame = df.copy()
     # per ogni colonna target sostituisco i valori nan
@@ -384,19 +316,16 @@ def apply_filter(x, a, b, filter):
 
 
 """
-Filtro a spillo IIR.
-Il filtro si può applicare solo quando non ci sono più valroi NAN, quini bisogna prima utilizzare
-una strategia di imputing.
-
-Il parametro filters deve essere una lista di filtri, come il seguente 
+IIR spike filter.  
+The filter can only be applied when there are no more NaN values, so an imputing strategy must be used first.
+The `filters` parameter must be a list of filters, like the following:  
     filters = [IIR_highpass, ...]
-    
+
 """
 
 
 def IIR(df: pd.DataFrame, target_columns: List, filters: List, a, b, inplace=False) -> pd.DataFrame:
     frame = df.copy()
-    # devo creare nuove colonne perchè il filtro utilizza sia i valori nuovi che i vecchi
     for idx, c in enumerate(target_columns):
         try:
             if inplace:
@@ -410,147 +339,6 @@ def IIR(df: pd.DataFrame, target_columns: List, filters: List, a, b, inplace=Fal
             raise
     return frame
 
-
-def preprocess_ds(frame, refill_zero=False, drop_zero=False, isMultipleTS=True, setIsCap=True, setIsWeekend=True,
-                  withCoupons=True, oheCity=False, oheTs=True, oheMonth=True, oheYear=True, oheMicro=True,
-                  dropColumns=True, withMicro=False, oheFiles=None,
-                  oheMap=None):
-    if oheFiles is None:
-        oheFiles = {'weather': '../encoders/weather_ohe_map',
-                    'month': '../encoders/oheMonth',
-                    'year': '../encoders/oheYears',
-                    'ts': '../encoders/oheTs',
-                    'cities': '../encoders/oheCities',
-                    'micro': '../encoders/oheMicro'}
-    frame = frame.copy()  # creo una copia del frame in modo da non modificare quello originale
-    if drop_zero:
-        frame = frame.drop(
-            np.where(frame['orders_completed'].values.astype('int32') == 0)[0])
-        frame.reset_index(inplace=True, drop=True)
-    if refill_zero:
-        c = 'orders_completed'
-        zero_pos = frame[frame[c].values.astype('float64') == 0].index
-        prec_zero_pos = []
-        dist = 4
-        for zp in zero_pos:
-            # pp = zp-1
-            # while int(frame['orders_completed'].values[pp]) == 0:
-            #	pp = pp-1
-            # prec_zero_pos.append(pp)
-            # prendo settiana precedente
-            cnt = 1
-            nzp = zp
-            while float(frame[c].values[nzp]) == 0:
-                if zp - (7 * cnt * dist) > 0:
-                    nzp = zp - (7 * cnt * dist)
-                else:
-                    nzp = zp + (7 * cnt * dist)
-                cnt += 1
-            prec_zero_pos.append(nzp)
-        prec_zero_pos = np.array(prec_zero_pos)
-        columns = ['orders_completed', 'coupons_count',
-                   'bookings_taken', 'bookings_auth']
-        for c in columns:
-            frame[c].values[zero_pos] = frame[c].values[prec_zero_pos]
-
-        # aggiungo una colonna che indica se l'ordine è stato cappato o meno
-        # ciò significa che ho saturato gli ordini possibili
-    if oheCity:
-        transformed = oheData(
-            frame['city'].values.astype(int), oheFiles['cities'])
-        for n in range(len(transformed[0])):
-            s = f'city_ohe{n + 1}'
-            frame[s] = transformed[:, n]
-    if setIsCap:
-        frame['is_cap'] = [0 for n in range(len(frame))]
-        # cerco le righe dove orders_completed >= bookings_taken*5
-        # in questo modo capisco se ho avuto un cap degli ordini dovuti ai pochi drivers.
-        if not withMicro:
-            loc = np.where(
-                frame['orders_completed'].values.astype('int32') >= frame['bookings_taken'].values.astype('int32') * 5)
-        else:  # se prendo in considerazione solo un'ora, un driver fa massimo 2 ordini
-            loc = np.where(
-                frame['orders_completed'].values.astype('int32') >= frame['bookings_taken'].values.astype('int32') * 2)
-        # imposto che gli ordini sono stati cappati dal numero dei drivers
-        frame.loc[loc[0], ('is_cap')] = 1
-    if setIsWeekend:
-        frame['is_weekend'] = [is_weekend(
-            frame['date'].loc[n]) for n in range(len(frame))]
-    if oheMonth:
-        frame['month'] = [get_month(frame['date'].loc[n])
-                          for n in range(len(frame))]
-
-        transformed = oheData(frame['month'].values, oheFiles['month'])
-
-        for n in range(len(transformed[0])):
-            s = f'month_ohe{n + 1}'
-            frame[s] = transformed[:, n]
-    if oheYear:
-        years = frame['date']
-        # frame['year'] = [get_year(frame['date'].loc[n]) for n in range(len(frame))]
-        num_y = []
-        for y in years:
-            num_y.append(get_year(y))
-        num_y = np.array(num_y)
-        # ohe = OneHotEncoder()
-        # transformed = ohe.fit_transform(num_y.reshape(-1,1))
-        transformed = oheData(num_y, oheFiles['year'])
-        for n in range(len(transformed[0])):
-            s = f'year_ohe{n + 1}'
-            frame[s] = transformed[:, n]
-    if oheTs:
-        if isMultipleTS:
-            # ohe = OneHotEncoder()
-            # transformed = ohe.fit_transform(frame['timeshift'].values.reshape(-1,1))
-            transformed = oheData(frame['timeshift'].values, oheFiles['ts'])
-            for n in range(len(transformed[0])):
-                s = f'ts_ohe{n + 1}'
-                frame[s] = transformed[:, n]
-    if withMicro:
-        if oheMicro:
-            # ohe = OneHotEncoder()
-            # transformed = ohe.fit_transform(frame['micro'].values.reshape(-1,1))
-            transformed = oheData(frame['micro'].values, oheFiles['micro'])
-            for n in range(len(transformed[0])):
-                s = f'micro_ohe{n + 1}'
-                frame[s] = transformed[:, n]
-    if dropColumns:
-        frame = frame.drop('month', axis=1)
-        frame = frame.drop('timeshift', axis=1)
-        # One-hot encoding a single column
-        frame = frame.drop(
-            ['date', 'city', 'bookings_taken', 'bookings_auth'], axis=1)
-        if withMicro:
-            frame = frame.drop(['micro'], axis=1)
-    if withCoupons:
-        is_coupon = [0 for n in range(len(frame))]
-        for idx, c in enumerate(frame['coupons_count'].values.astype(int)):
-            if c > 0:
-                is_coupon[idx] = 1
-        frame['is_coupon'] = is_coupon
-
-    return frame
-
-
-def get_XYS(frame, seq_len, train_perc=0.95, isShuffled=True):
-    seq = frame['orders_completed'].values.astype('int32')
-    scaler = StandardScaler()
-    scaler = scaler.fit(seq.reshape(-1, 1))
-    standardized = scaler.transform(seq.reshape(-1, 1))
-    frame['orders_completed'] = standardized
-    seq = frame.values.astype('float64')
-    X, y, _, __ = split_sequence(seq, seq_len)
-    y = y[:, 0]
-    if isShuffled:
-        ind_list = [i for i in range(X.shape[0])]
-        shuffle(ind_list)
-        X = X[ind_list]
-        y = y[ind_list]
-
-    X_train, y_train = X[:int(len(X) * train_perc)
-                       ], y[:int(len(y) * train_perc)]
-    X_test, y_test = X[-int(len(X) * (1 - train_perc)):], y[-int(len(y) * (1 - train_perc)):]
-    return scaler, (X_train, y_train), (X_test, y_test)
 
 
 def minMaxScale(frame, pos):
@@ -570,80 +358,3 @@ def standardScale(frame, pos):
     frame[pos] = std
     return scaler
 
-
-def get_XY_fromseq(seq, seq_len, train_perc=0.95, isShuffled=True):
-    X, y, _, __ = split_sequence(seq, seq_len)
-    y = y[:, 0]
-    if isShuffled:
-        ind_list = [i for i in range(X.shape[0])]
-        shuffle(ind_list)
-        X = X[ind_list]
-        y = y[ind_list]
-
-    X_train, y_train = X[:int(len(X) * train_perc)
-                       ], y[:int(len(y) * train_perc)]
-    X_test, y_test = X[-int(len(X) * (1 - train_perc)):], y[-int(len(y) * (1 - train_perc)):]
-    return (X_train, y_train), (X_test, y_test)
-
-
-def test_performance(X, y, model, n_steps, n_features, scaler):
-    max = 0
-    diffs = []
-    correct = 0
-    pos = 0
-    for n in range(X.shape[0]):
-        x_input = X[n]
-        x_input = x_input.reshape((1, n_steps, n_features))
-        # print(x_input.shape)
-        yhat = model.predict(x_input)
-        # print(yhat.shape)
-        inversedyhat = np.rint(scaler.inverse_transform(yhat))
-        # print(np.rint(inversed))
-        inversed = np.rint(scaler.inverse_transform(y[n].reshape(-1, 1)))
-        diff = np.rint(inversedyhat[0][0]) - inversed[0][0]
-        print('predicted ', inversedyhat[0][0],
-              ' real ', inversed[0][0], ' error ', diff)
-        pos = n
-        diffs.append(abs(diff))
-        if abs(diff) > max:
-            max = abs(diff)
-        if abs(diff) <= 10:
-            correct += 1
-
-    accs = (correct) / (len(X)) * 100
-
-    print('errore picco: ', max, ' media errori: ', np.mean(diffs), ' deviazione standard: ', np.std(diffs),
-          'accuracy (10) ', accs)
-
-
-def root_mean_squared_error(y_true, y_pred):
-    return K.sqrt(K.mean(K.square(y_pred - y_true)))
-
-
-def test_performance2(X, y, model, scaler):
-    y_pred = model.predict(X)
-    # accs = (correct)/(len(X))*100
-    diff = scaler.inverse_transform(y_pred) - scaler.inverse_transform(y)
-    abs_diff = np.abs(scaler.inverse_transform(
-        y_pred) - scaler.inverse_transform(y))
-    max = np.max(abs_diff)
-    mean = np.mean(abs_diff)
-    std = np.std(abs_diff)
-
-    print('errore picco: ', max, ' media errori: ', mean,
-          ' deviazione standard: ', std)  # ,'accuracy (10) ',accs)
-
-
-#	url = f'http://history.openweathermap.org/data/2.5/history/city?lat=41.07493523509603&lon=14.341091479432484&type=hour&start=1648915200&end=1648936740&appid=62380bd96d3163426501ecf894f53917'
-def get_history_weather(lat, lon, date, timeshift):
-    t_start, t_end = date_to_ts(date, timeshift)
-    URL = f'http://history.openweathermap.org/data/2.5/history/city?lat={lat}&lon={lon}&type=hour&start={t_start}&end={t_end}&appid=62380bd96d3163426501ecf894f53917&units=metric'
-    r = requests.get(url=URL)
-    # print(r.json())
-    return r
-
-
-def get_ts_from_ds(X, target_col):
-    rn = X[0, :, target_col]
-    rn = np.append(rn, X[1:, -1, target_col])
-    return rn

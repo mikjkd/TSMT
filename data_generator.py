@@ -113,8 +113,6 @@ class DataGenerator:
 
     @staticmethod
     def split_train_valid(data, train_p=0.9, shuffle=False):
-        # Implementazione della divisione dei dati
-        # train_test split
         if type(data) is tuple:
             # print('tuple')
             X = data[0]
@@ -136,8 +134,7 @@ class DataGenerator:
             train_filenames = data[:int(len(data) * train_p)]
             valid_filenames = data[int(len(data) * train_p):]
             return train_filenames, valid_filenames
-        # Implementazione della divisione dei dati
-        # train_test split
+
 
     def generate_data(self, train_filenames: List, test_filenames: List, batch_size=32, operations=None):
         # Implementazione della preparazione dei dati
