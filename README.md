@@ -14,9 +14,8 @@ A versatile toolkit for analyzing, preprocessing, and modeling time-series data.
 - **`dataset.py`**: Contains the `Dataset` class for data preprocessing, scaling, and sequence generation for model training.
 - **`data_generator.py`**: Manages data batching, enabling efficient loading for large time-series datasets.
 - **`LSTMRegressor.py`**: Implements various LSTM models, including both standard and `TimeDistributed` architectures.
-- **`main.py`**: Configures and initiates model training and evaluation, allowing for easy experimentation with different models and settings.
 - **`model.py`**: Defines the `ModelTrainer` class, which supports early stopping, model checkpointing, and learning rate adjustments.
-- **`eval_model.py`**: Provides evaluation functions to assess model performance, including metrics such as MAE and Pearson’s correlation.
+- **`eval_model.py`**: Provides evaluaion functions to assess model performance, including metrics such as MAE and Pearson’s correlation.
 
 ## Setup
 
@@ -36,7 +35,6 @@ TimeSeriesModelingToolkit/
 ├── dataset.py
 ├── data_generator.py
 ├── LSTMRegressor.py
-├── main.py
 ├── model.py
 ├── eval_model.py
 ├── saved_model/
@@ -44,23 +42,49 @@ TimeSeriesModelingToolkit/
 └── data/
 ```
 
+## Setup
+
+### Integration with a New Project
+
+To integrate TSMT into your project, clone the repository into your project directory:
+
+```bash
+git clone <TSMT-repository-url> TSMT
+```
+
+
+Organize your project directory as follows:
+
+```text
+forecast_project/
+├── main.py
+├── TSMT/
+├── data/
+├── saved_model/
+├── scalers/
+└── encoders/
+```
+
+Install the required packages by running:
+
+```bash
+pip install -r TSMT/requirements.txt
+```
+
 ## Usage
 
+1. Place your data in the `data/` folder.
+2. Write the `main.py` following the `main_example.txt` 
+3. Configure `main.py` with your dataset and desired settings.
+4. Run the training script:
 
-1. **Data Preparation**: Place your raw data in the data/ folder. Configure sequence lengths and other parameters in main.py.
-
-2. **Training the Model**: Run the following command to start training:
 ```bash
 python main.py
 ```
 
-3. **Evaluation**: After training, `main.py` will save evaluation metrics and generate visualizations. The `eval_model.py` script allows customization of evaluation metrics.
+4. **Evaluation**: After training, `main.py` will save evaluation metrics and generate visualizations. The `eval_model.py` script allows customization of evaluation metrics.
 
-4. **Model Customization**: `LSTMRegressor.py` provides different LSTM configurations, including both standard and TimeDistributed options with advanced features like attention.
-
-## Example Visualization
-
-The toolkit includes tools for generating visualizations, comparing true vs. predicted values across sequences to evaluate model performance.
+5. **Model Customization**: `LSTMRegressor.py` provides different LSTM configurations, including both standard and TimeDistributed options with advanced features like attention.
 
 ## Future Improvements ##
 
