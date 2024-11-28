@@ -11,14 +11,22 @@ from models_repo.model import ModelTrainer, generate_model_name
 from models_repo.LSTMRegressor import LSTMRegressor, TDLSTMRegressor
 
 
-def save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len_x, seq_len_y,
+def save_results(model_name, batch_size, epochs, loss, train_mae, train_pearsonsval, test_mae, test_pearsonsval,
+                 seq_len_x, seq_len_y,
                  regressor, timedistributed, columns_to_scale, columns_to_forecast, filters,
                  train_test_split, padding_size):
     file_exists = os.path.isfile('performances.json')
     data = {
         'model_name': model_name, 'batch_size': batch_size,
         'epochs': epochs, 'metric_type': loss,
-        'result': mae, 'pearson': pearsonsval,
+        'train_result': {
+            'loss': train_mae,
+            'pearsons': train_pearsonsval
+        },
+        'test_result': {
+            'loss': test_mae,
+            'pearsons': test_pearsonsval
+        },
         'numstep_in': seq_len_x,
         'numstep_out': seq_len_y,
         'model_features': {
@@ -31,7 +39,6 @@ def save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len
             'input_columns': columns_to_scale,
             'forecast_column': columns_to_forecast,
             'filters_settings': filters,
-            'filter_type': 'Low',
             'train_test_split': train_test_split,
             'padding_size': padding_size
         }
@@ -44,6 +51,7 @@ def save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len
         fulljson = [data]
     with open("performances.json", "w+") as jsonfile:
         json.dump(fulljson, jsonfile)
+
 
 
 def main():
@@ -126,25 +134,50 @@ def main():
         loss=loss,
         epochs=epochs
     )
-    # loading the best model
-    regressor.load_model(f'saved_model/{model_name}.x')
-    # Adjust test set by excluding the overlap
-    X_test_eval = X_test  # [padding_size:]
-    y_test_eval = y_test  # [padding_size:]
+    if timedistributed:
+        regressor.load_model(
+            custom_objects={'last_time_step_mse': last_time_step_mse})  # {'last_time_step_mse': last_time_step_mse})
+    else:
+        regressor.load_model()
 
-    # Model predictions
-    lstm_y_preds = regressor.model.predict(X_test_eval)
-    pearsonsval = eval(y_test[:, -1], lstm_y_preds[:, -1])
-    # Calculate Mean Absolute Error (MAE)
-    mae = float(mean_absolute_error(y_test_eval.reshape(y_test_eval.shape[0]), lstm_y_preds))
+    train_pearsons = []
+    train_maes = []
 
-    # Calculate Pearson's correlation => i have a filtered X
+    lstm_y_preds = regressor.model.predict(X_train)
+
+    for ctfidx in range(len(columns_to_forecast)):
+        pearsonsval = eval_model.eval(y_train[:, -1, ctfidx], lstm_y_preds[ctfidx][:, -1],
+                                      scaler_path=f'scalers/{columns_to_forecast[ctfidx]}_scaler.save')
+        train_pearsons.append(pearsonsval)
+        # Calculate Mean Absolute Error (MAE)
+        mae = float(mean_absolute_error(y_train[:, -1, ctfidx], lstm_y_preds[ctfidx][:, -1]))
+        train_maes.append(mae)
+        print('train pearsons: ', pearsonsval, 'train mae: ', mae)
+
+    test_pearsons = []
+    test_maes = []
+    if training_type == XYType.TRAINTEST:
+        # Adjust test set by excluding the overlap
+        # Model predictions
+        lstm_y_preds = regressor.model.predict(X_test)
+
+        for ctfidx in range(len(columns_to_forecast)):
+            pearsonsval = eval_model.eval(y_test[:, -1, ctfidx], lstm_y_preds[ctfidx][:, -1],
+                                          scaler_path=f'scalers/{columns_to_forecast[ctfidx]}_scaler.save')
+            test_pearsons.append(pearsonsval)
+            # Calculate Mean Absolute Error (MAE)
+            mae = float(mean_absolute_error(y_test[:, -1, ctfidx], lstm_y_preds[ctfidx][:, -1]))
+            test_maes.append(mae)
+            print('test pearsons: ', pearsonsval, 'test mae: ', mae)
+        # Calculate Pearson's correlation => i have a filtered X
 
     if save:
-        save_results(model_name, batch_size, epochs, loss, mae, pearsonsval, seq_len_x, seq_len_y,
+        save_results(model_name, batch_size, epochs, 'last_time_step_mse' if timedistributed else 'mae',
+                     train_maes, train_pearsons,
+                     test_maes, test_pearsons,
+                     seq_len_x, seq_len_y,
                      regressor, timedistributed, columns_to_scale, columns_to_forecast, filters,
                      train_test_split, padding_size)
-
 
 if __name__ == "__main__":
     main()
