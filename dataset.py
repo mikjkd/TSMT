@@ -70,6 +70,8 @@ class Dataset:
         self.data_path = data_path
         self.encoders = encoders
         self.scaler_path = scaler_path
+        self.x_columns = None
+        self.y_columns = None
 
     def load_XY(self):
         pass
@@ -214,6 +216,8 @@ class Dataset:
         target_columns_to_drop = tctd.copy()
         filtered_frame_drop = frame.drop(target_columns_to_drop, axis=1)
         target_frame_drop = frame.drop(tctd, axis=1)
+        # I save the new X,y column names
+        self.x_columns = target_frame_drop.columns
 
         if cast_values:
             X, _, ind_X, _ = split_sequence(filtered_frame_drop.values.astype('float64'), self.seq_len_x,
@@ -230,6 +234,8 @@ class Dataset:
         if self.seq_len_y > 0:
             Y = Y[:, :, ctfs]
 
+        self.y_columns = tct
+
         # I remove the values I don’t know in the output; this is to avoid trying to forecast values
         # that are gaps in the series filled with fillna(0)
         # Note: gaps in the input (X) are accepted; it’s the gaps in the output that cause problems
@@ -240,6 +246,7 @@ class Dataset:
             rp = np.where(na_cols[ind_Y.reshape(ind_Y.shape[0])] == True)[0]
             X = np.delete(X, rp, axis=0)
             Y = np.delete(Y, rp, axis=0)
+
         print("Done!")
         return X, Y
 
@@ -275,7 +282,8 @@ class Dataset:
                                                   remove_not_known=remove_not_known,
                                                   scaler_type=scaler_type,
                                                   fill_na_type=fill_na_type,
-                                                  type=XYType.TRAIN, distributed=distributed)# The padding_size in TRAINTEST is used for a technique called Alignment Buffer.
+                                                  type=XYType.TRAIN,
+                                                  distributed=distributed)  # The padding_size in TRAINTEST is used for a technique called Alignment Buffer.
             # This buffer, consisting of the last 20 rows of the training set positioned before the test set,
             # allows for a smoother transition of the window, avoiding a phenomenon called the Boundary Effect.
             # With this buffer window, it is possible to achieve a smoother transition from training to test,
