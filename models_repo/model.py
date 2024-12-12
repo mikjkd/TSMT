@@ -112,11 +112,11 @@ class RegressorModel:
         if pred_mode is PredMode.FR:
             self.pred_config.options = options
 
-    def load_model(self, model_path=None, custom_objects=None):
+    def load_model(self, model_path=None, custom_objects=None, format='x'):
         if self.model_path is not None:
-            path = f'{self.model_path}/{self.model_name}.x'
+            path = f'{self.model_path}/{self.model_name}.{format}'
         else:
-            path = f'{model_path}/{self.model_name}.x'
+            path = f'{model_path}/{self.model_name}.{format}'
 
         self.model = load_model(path, custom_objects=custom_objects)
         return self.model
