@@ -71,14 +71,28 @@ class ScalerInfo:
     """
         scaler_map = {
            'column_name':{
-            'io': ScalerInfoTypes,
-            'name': name,
-            'function': Scaler function,
+               'training':{
+                    'io': ScalerInfoTypes,
+                    'name': name,
+                    'function': Scaler function,
+                },
+                'test':{
+                      'io': ScalerInfoTypes,
+                    'name': name,
+                    'function': Scaler function,
+                }
             }
            'column_name2':{
-           'io': ScalerInfoType
-            'name':name,
-            'function':Scaler function
+             'training':{
+                    'io': ScalerInfoTypes,
+                    'name': name,
+                    'function': Scaler function,
+                },
+                'test':{
+                      'io': ScalerInfoTypes,
+                    'name': name,
+                    'function': Scaler function,
+                }
            }
         }
     """
@@ -86,11 +100,15 @@ class ScalerInfo:
     def __init__(self):
         self.scalers: Dict[str, Scaler] = {}
 
-    def load_from_map(self, scaler_map):
+    def load_from_map(self, scaler_map, xy_type: XYType):
+        if xy_type == XYType.TRAIN:
+            xy = 'training'
+        else:
+            xy = 'test'
         for cts in list(scaler_map.keys()):
-            name = scaler_map[cts]['name']
-            io = scaler_map[cts]['io']
-            function = scaler_map[cts]['function']
+            name = scaler_map[cts][xy]['name']
+            io = scaler_map[cts][xy]['io']
+            function = scaler_map[cts][xy]['function']
             scaler: Scaler = Scaler(name=name, io=io, function=function)
             self.scalers[cts] = scaler
 
@@ -224,6 +242,7 @@ class Dataset:
                       distributed,
                       cast_values=True,
                       remove_not_known=False,
+                      xy_type: XYType = XYType.TRAIN,
                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         tcts = columns_to_scale.copy()
         tctd = columns_to_drop.copy()
@@ -247,7 +266,7 @@ class Dataset:
                         tcts[f'{k}_filtered_{i["column"]}'] = tcts[i["column"]]
 
         scaler_info: ScalerInfo = ScalerInfo()
-        scaler_info.load_from_map(tcts)
+        scaler_info.load_from_map(tcts, xy_type=xy_type)
         frame = self.scale_df(frame, scaler_info=scaler_info)
 
         tctd.extend([f'na_{c}' for c in tct])
@@ -298,27 +317,24 @@ class Dataset:
         self.seq_len_x = seq_len_x
         self.seq_len_y = seq_len_y
         if xy_type == XYType.TRAIN or xy_type == XYType.TEST:
-            for cts in list(columns_to_scale.keys()):
-                columns_to_scale[cts][
-                    'io'] = ScalerInfoTypes.OUTPUT if xy_type == XYType.TRAIN else ScalerInfoTypes.INPUT
             X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
                                       columns_to_forecast=columns_to_forecast, filters=filters,
                                       cast_values=cast_values,
                                       remove_not_known=remove_not_known,
                                       fill_na_type=fill_na_type,
+                                      xy_type=xy_type,
                                       distributed=distributed)
             return X, y
         elif xy_type == XYType.TRAINTEST:
             train_df = df[:int(len(df) * train_test_split)]
             test_df = df[int(len(df) * train_test_split):]
-            for cts in list(columns_to_scale.keys()):
-                columns_to_scale[cts]['io'] = ScalerInfoTypes.OUTPUT
             X_train, y_train = self.__generate_XY(df=df, columns_to_scale=columns_to_scale,
                                                   columns_to_drop=columns_to_drop,
                                                   columns_to_forecast=columns_to_forecast, filters=filters,
                                                   cast_values=cast_values,
                                                   remove_not_known=remove_not_known,
                                                   fill_na_type=fill_na_type,
+                                                  xy_type=XYType.TRAIN,
                                                   distributed=distributed)
             # The padding_size in TRAINTEST is used for a technique called Alignment Buffer.
             # This buffer, consisting of the last 20 rows of the training set positioned before the test set,
@@ -332,27 +348,18 @@ class Dataset:
             else:
                 test_df_with_overlap = test_df
 
-            for cts in list(columns_to_scale.keys()):
-                columns_to_scale[cts]['io'] = ScalerInfoTypes.INPUT
             X_test, y_test = self.__generate_XY(df=test_df_with_overlap, columns_to_scale=columns_to_scale,
                                                 columns_to_drop=columns_to_drop,
                                                 columns_to_forecast=columns_to_forecast,
                                                 filters=filters,
                                                 cast_values=cast_values,
                                                 remove_not_known=remove_not_known,
+                                                xy_type=XYType.TEST,
                                                 fill_na_type=fill_na_type,
                                                 distributed=distributed)
             return (X_train, y_train), (X_test, y_test)
         else:
-            # training type is none, it means that there are no constraint on the kind of scaling
-            X, y = self.__generate_XY(df=df, columns_to_scale=columns_to_scale, columns_to_drop=columns_to_drop,
-                                      columns_to_forecast=columns_to_forecast, filters=filters,
-                                      cast_values=cast_values,
-                                      remove_not_known=remove_not_known,
-                                      fill_na_type=fill_na_type,
-                                      distributed=distributed)
-
-            return X, y
+            raise Exception('XY Type not defined')
 
     @staticmethod
     def save_XY(X, Y, base_path, filename):
