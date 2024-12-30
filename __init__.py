@@ -25,5 +25,7 @@ __all__ = [
     "fill_na_mean",
     "IIR",
     "LSTMRegressor",
-    "TDLSTMRegressor"
+    "TDLSTMRegressor",
+    "ScalerInfo",
+    "ScalerInfoTypes"
 ]
