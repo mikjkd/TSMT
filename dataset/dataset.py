@@ -165,7 +165,9 @@ class Dataset:
                     if i["column"] in list(tcts.keys()):
                         tcts[f'{k}_filtered_{i["column"]}'] = tcts[i["column"]]
 
-        frame = scale_df(frame, self.scaler_path, columns_to_scale=tcts)
+        scaler_info: ScalerInfo = ScalerInfo()
+        scaler_info.load_from_map(tcts, xy_type=xy_type)
+        frame = scale_df(frame, self.scaler_path, columns_to_scale=scaler_info)
 
         tctd.extend([f'na_{c}' for c in tct])
         frame_drop = frame.drop(tctd, axis=1)
