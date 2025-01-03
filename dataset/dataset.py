@@ -2,39 +2,14 @@ import os
 import pickle as pkl
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Union, Dict
+from typing import Optional
 
-import joblib
 import numpy as np
 import pandas as pd
-from scipy.signal import butter, lfilter
 
-from .libV2 import split_sequence, fill_na_mean, IIR
-
-
-class ScalerTypes(Enum):
-    MINMAX = 'minmax'
-    STD = 'standard'
-
-
-class FillnaTypes(Enum):
-    SIMPLE = 'simple'
-    MEAN = 'mean'
-
-    @staticmethod
-    def from_string(s):
-        if s == 'SIMPLE':
-            return FillnaTypes.SIMPLE
-        elif s == 'MEAN':
-            return FillnaTypes.MEAN
-        else:
-            return FillnaTypes.SIMPLE
-
-
-class XYType(Enum):
-    TRAIN = 'Train'
-    TEST = 'Test'
-    TRAINTEST = 'TrainTest'
+from TSMT.dataset.filler import FillnaTypes, fill_na
+from TSMT.dataset.filter import multi_filter
+from TSMT.dataset.scaler import ScalerInfo, scale_df, XYType
 
 
 class Constants(Enum):
@@ -53,64 +28,6 @@ class Constants(Enum):
     COLUMNS_TO_SCALE = 'columns_to_scale'
     COLUMNS_TO_DROP = 'columns_to_drop'
     COLUMNS_TO_FORECAST = 'columns_to_forecast'
-
-
-class ScalerInfoTypes(Enum):
-    INPUT = 'input'
-    OUTPUT = 'output'
-
-
-class Scaler:
-    def __init__(self, io, name, function):
-        self.io: Union[ScalerInfoTypes, None] = io
-        self.name = name
-        self.function = function
-
-
-class ScalerInfo:
-    """
-        scaler_map = {
-           'column_name':{
-               'training':{
-                    'io': ScalerInfoTypes,
-                    'name': name,
-                    'function': Scaler function,
-                },
-                'test':{
-                      'io': ScalerInfoTypes,
-                    'name': name,
-                    'function': Scaler function,
-                }
-            }
-           'column_name2':{
-             'training':{
-                    'io': ScalerInfoTypes,
-                    'name': name,
-                    'function': Scaler function,
-                },
-                'test':{
-                      'io': ScalerInfoTypes,
-                    'name': name,
-                    'function': Scaler function,
-                }
-           }
-        }
-    """
-
-    def __init__(self):
-        self.scalers: Dict[str, Scaler] = {}
-
-    def load_from_map(self, scaler_map, xy_type: XYType):
-        if xy_type == XYType.TRAIN:
-            xy = 'training'
-        else:
-            xy = 'test'
-        for cts in list(scaler_map.keys()):
-            name = scaler_map[cts][xy]['name']
-            io = scaler_map[cts][xy]['io']
-            function = scaler_map[cts][xy]['function']
-            scaler: Scaler = Scaler(name=name, io=io, function=function)
-            self.scalers[cts] = scaler
 
 
 class Configuration:
@@ -158,22 +75,6 @@ class Dataset:
 
         return df
 
-    def scale_df(self, frame, scaler_info: ScalerInfo):
-        frame = frame.copy()
-        columns = list(scaler_info.scalers.keys())
-        for cts in columns:
-            if scaler_info.scalers[cts].io == ScalerInfoTypes.INPUT:
-                scaler = joblib.load(f"{self.scaler_path}{scaler_info.scalers[cts].name}_scaler.save")
-                frame[cts] = scaler.transform(
-                    frame[cts].values.reshape(-1, 1).astype('float64'))
-            elif scaler_info.scalers[cts].io == ScalerInfoTypes.OUTPUT:
-                scaler = scaler_info.scalers[cts].function(frame, cts)
-                # save the scaler
-                joblib.dump(scaler, f"{self.scaler_path}{scaler_info.scalers[cts].name}_scaler.save")
-            else:
-                raise Exception('Wrong Scaler Info')
-        return frame
-
     @staticmethod
     def process_ds(frame, date_prediction_start=None, days_delta=7):
         frame = frame.copy()
@@ -194,37 +95,36 @@ class Dataset:
             new_df[f'na_{c}'] = na_cols[:, idx]
         return new_df, na_cols
 
-    def fill_na(self, df, fill_na_type: FillnaTypes):
-        if fill_na_type == FillnaTypes.SIMPLE:
-            df = df.fillna(0)
-        elif fill_na_type == FillnaTypes.MEAN:
-            df = fill_na_mean(df, self.columns)
-        return df
-
+    # split a univariate sequence into samples
+    # returns indices too
     @staticmethod
-    def __filter(df, colums_to_filter, filter_type, order, cutoff, inplace):
-        filters = [lfilter for _ in range(len(colums_to_filter))]
-        try:
-            b, a = butter(order, cutoff, btype=filter_type, analog=False)
-            frame: pd.DataFrame = IIR(df, target_columns=colums_to_filter, filters=filters, a=a, b=b, inplace=inplace)
-            if inplace is False:
-                cnames = {f'filtered_{ctf}': f'{filter_type}_filtered_{ctf}' for ctf in colums_to_filter}
-                frame.rename(columns=cnames, inplace=True)
-            return frame
-        except:
-            raise Exception('Wrong filter type')
+    def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
+        X, y = list(), list()
+        ind_X, ind_Y = list(), list()
+        for i in range(len(sequence)):
+            # find the end of this pattern
+            end_ix = i + n_steps
+            # check if we are beyond the sequence
+            if end_ix + n_steps_y > len(sequence):
+                break
+            # gather input and output parts of the pattern
+            seq_x = sequence[i:end_ix]
+            seq_y = []
+            if n_steps_y > 0:
+                if distributed:
+                    for j in range(i + 1, end_ix + 1):
+                        seq_y.append(sequence[j:j + n_steps_y])
+                    seq_y = np.array(seq_y)
+                    seq_y = seq_y.reshape(seq_y.shape[0], seq_y.shape[-1])
+                else:
+                    seq_y = sequence[end_ix:end_ix + n_steps_y]
+            # print(seq_x,seq_y)
+            X.append(seq_x)
+            y.append(seq_y)
+            ind_X.append(range(i, end_ix))
+            ind_Y.append(range(end_ix, end_ix + n_steps_y))
 
-    def multi_filter(self, df: pd.DataFrame, filters) -> pd.DataFrame:
-        frame = df.copy()
-        for k in filters.keys():
-            items = filters[k]['items']
-            for i in items:
-                ctf = [i['column']]
-                order = i['parameters']['order']
-                cutoff = i['parameters']['cutoff']
-                frame = self.__filter(frame, colums_to_filter=ctf, filter_type=k, order=order, cutoff=cutoff,
-                                      inplace=False)
-        return frame
+        return np.array(X), np.array(y), np.array(ind_X), np.array(ind_Y)
 
     """generate_XY generates the X,y tensor needed for training/testing the model. It takes as input a DataFrame
     object -> the original data that we want to convert into tensors; The name of the columns that have to be scaled, 
@@ -253,10 +153,10 @@ class Dataset:
         # it is mandatory to fill na values in a (X,y) generation, it oly depends on the way
         # knowing the fact that we need to fill, a good way is to add a column to the df, saying that a specific value
         # has been filled with another value. That helps in post processing part
-        df = self.fill_na(df, fill_na_type=fill_na_type)
+        df = fill_na(df=df, fill_na_type=fill_na_type, columns=self.columns)
         inplace = False
 
-        frame = self.multi_filter(df=df, filters=filters)
+        frame = multi_filter(df=df, filters=filters)
         if inplace is False:
             # update columns to scale according to the new filtered columns
             for k in filters.keys():
@@ -265,9 +165,7 @@ class Dataset:
                     if i["column"] in list(tcts.keys()):
                         tcts[f'{k}_filtered_{i["column"]}'] = tcts[i["column"]]
 
-        scaler_info: ScalerInfo = ScalerInfo()
-        scaler_info.load_from_map(tcts, xy_type=xy_type)
-        frame = self.scale_df(frame, scaler_info=scaler_info)
+        frame = scale_df(frame, self.scaler_path, columns_to_scale=tcts)
 
         tctd.extend([f'na_{c}' for c in tct])
         frame_drop = frame.drop(tctd, axis=1)
@@ -275,15 +173,15 @@ class Dataset:
         self.x_columns = frame_drop.columns
 
         if cast_values:
-            X, _, ind_X, _ = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x,
-                                            self.seq_len_y)
-            _, Y, _, ind_Y = split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y,
-                                            distributed=distributed)
+            X, _, ind_X, _ = self.split_sequence(frame_drop.values.astype('float64'), self.seq_len_x,
+                                                 self.seq_len_y)
+            _, Y, _, ind_Y = self.split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y,
+                                                 distributed=distributed)
         else:
-            X, _, ind_X, _ = split_sequence(frame_drop.values, self.seq_len_x,
-                                            self.seq_len_y)
-            _, Y, _, ind_Y = split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y,
-                                            distributed=distributed)
+            X, _, ind_X, _ = self.split_sequence(frame_drop.values, self.seq_len_x,
+                                                 self.seq_len_y)
+            _, Y, _, ind_Y = self.split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y,
+                                                 distributed=distributed)
 
         ctfs = [list(frame_drop.columns).index(ctf) for ctf in tct]
         if self.seq_len_y > 0:
@@ -407,7 +305,7 @@ def generate_dataset(configuration):
     columns = configuration[Constants.COLUMNS]
     columns_to_scale = configuration[Constants.COLUMNS_TO_SCALE]
     columns_to_drop = configuration[Constants.COLUMNS_TO_DROP]
-    columns_to_forecast = configuration[Constants.COLUMNS_TO_FORECAST]
+    columns_to_forecast_map = configuration[Constants.COLUMNS_TO_FORECAST]
     # filtering settings
     filters = configuration[Constants.FILTERS]
 
@@ -416,11 +314,13 @@ def generate_dataset(configuration):
 
     df = dataset.generate_frame()
     training_type = configuration[Constants.TRAINING_TYPE]  # XYType.TRAIN
+    scaler_info: ScalerInfo = ScalerInfo()
+    scaler_info.load_from_map(columns_to_forecast_map, xy_type=training_type)
     if training_type == XYType.TRAIN or training_type == XYType.TEST:
         X, y = dataset.generate_XY(df=df, seq_len_x=seq_len_x, seq_len_y=seq_len_y,
                                    columns_to_scale=columns_to_scale,
                                    columns_to_drop=columns_to_drop,
-                                   columns_to_forecast=columns_to_forecast,
+                                   columns_to_forecast=scaler_info,
                                    filters=filters,
                                    fill_na_type=FillnaTypes.MEAN, remove_not_known=False,
                                    xy_type=training_type)
@@ -435,7 +335,7 @@ def generate_dataset(configuration):
                                                                    seq_len_y=seq_len_y,
                                                                    columns_to_scale=columns_to_scale,
                                                                    columns_to_drop=columns_to_drop,
-                                                                   columns_to_forecast=columns_to_forecast,
+                                                                   columns_to_forecast=scaler_info,
                                                                    filters=filters,
                                                                    fill_na_type=FillnaTypes.MEAN,
                                                                    train_test_split=configuration[

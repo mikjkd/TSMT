@@ -1,7 +1,10 @@
-from .data_generator import DataGenerator  # replace with actual classes/functions you want to expose
-from .dataset import *
+from .data_generator import DataGenerator
+from .dataset.dataset import Dataset, generate_dataset
+from .dataset.filler import fill_na_mean, FillnaTypes
+from .dataset.filter import IIR
+from .dataset.scaler import minMaxScale, ScalerTypes, standardScale, ScalerInfoTypes, ScalerInfo, XYType, ScalerColumns, \
+    scale_df
 from .eval_model import *
-from .libV2 import minMaxScale, standardScale, split_sequence, fill_na_mean, IIR  # replace with actual functions
 from .models_repo.model import *
 from .models_repo.LSTMRegressor import *
 
@@ -21,11 +24,12 @@ __all__ = [
     "RegressorModel",
     "generate_model_name",
     "standardScale",
-    "split_sequence",
     "fill_na_mean",
     "IIR",
     "LSTMRegressor",
     "TDLSTMRegressor",
     "ScalerInfo",
-    "ScalerInfoTypes"
+    "ScalerInfoTypes",
+    "ScalerColumns",
+    "scale_df"
 ]

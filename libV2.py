@@ -224,137 +224,15 @@ def accuracy(pred, labels):
     return count / total
 
 
-# split a univariate sequence into samples
-# returns indices too
-def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
-    X, y = list(), list()
-    ind_X, ind_Y = list(), list()
-    for i in range(len(sequence)):
-        # find the end of this pattern
-        end_ix = i + n_steps
-        # check if we are beyond the sequence
-        if end_ix + n_steps_y > len(sequence):
-            break
-        # gather input and output parts of the pattern
-        seq_x = sequence[i:end_ix]
-        seq_y = []
-        if n_steps_y > 0:
-            if distributed:
-                for j in range(i + 1, end_ix + 1):
-                    seq_y.append(sequence[j:j + n_steps_y])
-                seq_y = np.array(seq_y)
-                seq_y = seq_y.reshape(seq_y.shape[0], seq_y.shape[-1])
-            else:
-                seq_y = sequence[end_ix:end_ix + n_steps_y]
-        # print(seq_x,seq_y)
-        X.append(seq_x)
-        y.append(seq_y)
-        ind_X.append(range(i, end_ix))
-        ind_Y.append(range(end_ix, end_ix + n_steps_y))
-
-    return np.array(X), np.array(y), np.array(ind_X), np.array(ind_Y)
-
-
-def generate_dataset(seq, scaler):
-    """mean = seq.mean(axis=0)
-    seq -= mean
-    std = seq.std(axis = 0)
-    seq /= std"""
-    scaler = scaler.fit(seq.reshape(-1, 1))
-    standardized = scaler.transform(seq.reshape(-1, 1))
-    standardized = standardized.reshape(standardized.shape[0])
-    X, y, _, __ = split_sequence(standardized, 28)
-    X_train, y_train = X[:int(len(X) * 0.95)], y[:int(len(y) * 0.95)]
-    X_test, y_test = X[-int(len(X) * 0.05):], y[-int(len(y) * 0.05):]
-    return (X_train, y_train), (X_test, y_test)
-
-
 def last_time_step_mse(Y_true, Y_pred):
     return keras.metrics.mean_squared_error(Y_true[:, -1], Y_pred[:, -1])
 
 
-def fill_na_mean(df, target_columns: List):
-    frame = df.copy()
-    # per ogni colonna target sostituisco i valori nan
-    for idx, c in enumerate(target_columns):
-        # trovo le posizioni dei nan
-        # alcuni valori non hanno nan, come ad esempio le date, per loro viene generata un'eccezione
-        # e quindi si passa alla colonna successiva
-        try:
-            zero_pos = frame[np.isnan(frame[c].values)].index
-            for zp in zero_pos:
-                # primo valore precedente allo zero
-                v0 = np.mean(frame[c])
-                v1 = v0
-                if zp > 0:
-                    # prendo l'ultimo valore diverso da nan prima della posizione dello zero
-                    try:
-                        v0 = frame[:zp].values[~np.isnan(frame[c].values[:zp])][-1, idx]
-                    except:
-                        pass
-                # primo valore successivo allo zero
-                if zp < len(df):
-                    # prendo il primo valore diverso da nan dopo la posizione dello zero
-                    try:
-                        v1 = frame[zp:].values[~np.isnan(frame[c].values[zp:])][0, idx]
-                    except:
-                        pass
-                frame.at[zp, c] = (v0 + v1) / 2
-        except Exception as e:
-            # print(f'{c}: {e}')
-            pass
-    return frame
-
-
-def IIR_highpass(y_prec, x_curr, x_prec, a: float = 0.8):
-    y_curr = a * y_prec + (x_curr - x_prec) * ((1 + a) / 2)
-    return y_curr
-
-
-def apply_filter(x, a, b, filter):
-    return filter(b, a, x)
-
-
-"""
-IIR spike filter.  
-The filter can only be applied when there are no more NaN values, so an imputing strategy must be used first.
-The `filters` parameter must be a list of filters, like the following:  
-    filters = [IIR_highpass, ...]
-
-"""
-
-
-def IIR(df: pd.DataFrame, target_columns: List, filters: List, a, b, inplace=False) -> pd.DataFrame:
-    frame = df.copy()
-    for idx, c in enumerate(target_columns):
-        try:
-            if inplace:
-                name = c
-            else:
-                name = f'filtered_{c}'
-            x = frame[c].values
-            frame[name] = apply_filter(x, a, b, filters[idx])
-        except Exception as e:
-            print(e)
-            raise
-    return frame
 
 
 
-def minMaxScale(frame, pos):
-    seq = frame[pos].values.astype('float64')
-    scaler = MinMaxScaler()
-    scaler = scaler.fit(seq.reshape(-1, 1))
-    minmax = scaler.transform(seq.reshape(-1, 1))
-    frame[pos] = minmax
-    return scaler
 
 
-def standardScale(frame, pos):
-    seq = frame[pos].values.astype('float64')
-    scaler = StandardScaler()
-    scaler = scaler.fit(seq.reshape(-1, 1))
-    std = scaler.transform(seq.reshape(-1, 1))
-    frame[pos] = std
-    return scaler
+
+
 

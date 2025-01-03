@@ -4,7 +4,7 @@ from typing import List, Tuple
 import keras
 import numpy as np
 
-from .libV2 import apply_filter
+from TSMT.dataset.filter import apply_filter
 
 
 class CustomGenerator(keras.utils.Sequence):
@@ -134,7 +134,6 @@ class DataGenerator:
             train_filenames = data[:int(len(data) * train_p)]
             valid_filenames = data[int(len(data) * train_p):]
             return train_filenames, valid_filenames
-
 
     def generate_data(self, train_filenames: List, test_filenames: List, batch_size=32, operations=None):
         # Implementazione della preparazione dei dati
