@@ -103,6 +103,7 @@ class RegressorModel:
         self.history: Optional[History] = history
         self.pred_config: PredictConfig = PredictConfig(PredMode.STD)
         self.model_path = model_path
+        self.description = ""
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
         pass
@@ -144,6 +145,9 @@ class RegressorModel:
 
     def visualize_results(self, actual, predicted):
         raise Exception('Visualization not implemented yet')
+
+    def description(self):
+        return self.description
 
 
 def generate_model_name():
