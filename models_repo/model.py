@@ -34,7 +34,7 @@ class ModelTrainer:
 
         # plot_model(model)
         model.summary()
-        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=30)
+        es = EarlyStopping(monitor='val_loss', mode='min', verbose=1, patience=50)
         mc = ModelCheckpoint(f'saved_model/{model_name}.x', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
@@ -103,7 +103,7 @@ class RegressorModel:
         self.history: Optional[History] = history
         self.pred_config: PredictConfig = PredictConfig(PredMode.STD)
         self.model_path = model_path
-        self.description = ""
+        self._description = ""
 
     def generate_model(self, input_shape, output_shape) -> keras.Model:
         pass
@@ -147,7 +147,7 @@ class RegressorModel:
         raise Exception('Visualization not implemented yet')
 
     def description(self):
-        return self.description
+        return self._description
 
 
 def generate_model_name():
