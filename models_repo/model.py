@@ -38,7 +38,7 @@ class ModelTrainer:
         mc = ModelCheckpoint(f'saved_model/{model_name}.x', monitor='val_loss', mode='min',
                              verbose=1,
                              save_best_only=True)
-        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=30, min_lr=0.00001)
+        reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, mode='min', patience=30, min_lr=1e-6)
         # if generator
         if train_gen is not None and valid_gen is not None:
             history = model.fit(x=train_gen,
@@ -55,7 +55,17 @@ class ModelTrainer:
                                 validation_data=(X_valid, y_valid),
                                 batch_size=self.batch_size,
                                 epochs=epochs,
-                                callbacks=[mc, es, reduce_lr]
+                                callbacks=[mc, es, reduce_lr],
+                                shuffle=False
+                                )
+        elif train is not None:
+            X_train, y_train = train['X'], train['y']
+            history = model.fit(x=X_train, y=y_train,
+                                validation_split=0.2,
+                                batch_size=self.batch_size,
+                                epochs=epochs,
+                                callbacks=[mc, es, reduce_lr],
+                                shuffle=False
                                 )
         else:
             raise Exception('Wrong configuration on training')
