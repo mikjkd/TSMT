@@ -228,7 +228,7 @@ class Dataset:
         elif xy_type == XYType.TRAINTEST:
             train_df = df[:int(len(df) * train_test_split)]
             test_df = df[int(len(df) * train_test_split):]
-            X_train, y_train = self.__generate_XY(df=df, columns_to_scale=columns_to_scale,
+            X_train, y_train = self.__generate_XY(df=train_df, columns_to_scale=columns_to_scale,
                                                   columns_to_drop=columns_to_drop,
                                                   columns_to_forecast=columns_to_forecast, filters=filters,
                                                   cast_values=cast_values,
