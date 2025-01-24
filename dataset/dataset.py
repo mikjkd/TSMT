@@ -156,7 +156,11 @@ class Dataset:
         df = fill_na(df=df, fill_na_type=fill_na_type, columns=self.columns)
         inplace = False
 
-        frame = multi_filter(df=df, filters=filters)
+        scaler_info: ScalerInfo = ScalerInfo()
+        scaler_info.load_from_map(tcts, xy_type=xy_type)
+        frame = scale_df(df, self.scaler_path, columns_to_scale=scaler_info)
+
+        frame = multi_filter(df=frame, filters=filters)
         if inplace is False:
             # update columns to scale according to the new filtered columns
             for k in filters.keys():
@@ -165,14 +169,10 @@ class Dataset:
                     if i["column"] in list(tcts.keys()):
                         tcts[f'{k}_filtered_{i["column"]}'] = tcts[i["column"]]
 
-        scaler_info: ScalerInfo = ScalerInfo()
-        scaler_info.load_from_map(tcts, xy_type=xy_type)
-        frame = scale_df(frame, self.scaler_path, columns_to_scale=scaler_info)
-
         tctd.extend([f'na_{c}' for c in tct])
         frame_drop = frame.drop(tctd, axis=1)
         # I save the new X,y column names
-        self.x_columns = frame_drop.columns
+        self.x_columns = frame_drop.columns.values
 
         if cast_values:
             X, _, ind_X, _ = self.split_sequence(frame_drop.values.astype('float64'), self.seq_len_x,
