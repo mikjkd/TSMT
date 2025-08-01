@@ -1,8 +1,15 @@
+import sys
 from enum import Enum
 from typing import List
 
 import numpy as np
 
+def progress_bar(current, total, bar_length=40):
+    percent = current / total
+    filled_length = int(bar_length * percent)
+    bar = "█" * filled_length + "-" * (bar_length - filled_length)
+    sys.stdout.write(f"\r|{bar}| {percent:.1%}")
+    sys.stdout.flush()
 
 class FillnaTypes(Enum):
     SIMPLE = 'simple'
@@ -27,7 +34,10 @@ def fill_na_mean(df, target_columns: List):
         # e quindi si passa alla colonna successiva
         try:
             zero_pos = frame[np.isnan(frame[c].values)].index
-            for zp in zero_pos:
+            #print(len(zero_pos),c)
+            for idx2,zp in enumerate(zero_pos):
+                #print(idx2)
+                #progress_bar(idx2,len(zero_pos))
                 # primo valore precedente allo zero
                 v0 = np.mean(frame[c])
                 v1 = v0
