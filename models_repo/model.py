@@ -27,10 +27,11 @@ class ModelTrainer:
         train, valid = config['train'], config['valid']
         optimizer = config['optimizer']
         loss = config['loss']
+        metrics = config['metrics']
         epochs = config['epochs']
         is_multiprocessing = config['multiprocessing']
         workers = 0 if not is_multiprocessing else config['workers']
-        model.compile(loss=loss, optimizer=optimizer, metrics=loss)
+        model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
 
         # plot_model(model)
         model.summary()
@@ -71,7 +72,7 @@ class ModelTrainer:
             raise Exception('Wrong configuration on training')
         return history
 
-    def run(self, model, model_name, train, valid, optimizer=Adam(learning_rate=0.001), loss='mse', epochs=512):
+    def run(self, model, model_name, train, valid,metrics, optimizer=Adam(learning_rate=0.001), loss='mse', epochs=512):
         config = {
             'model': model,
             'model_name': model_name,
@@ -83,6 +84,7 @@ class ModelTrainer:
             'valid': valid['data'] if 'data' in valid else None,
             'optimizer': optimizer,
             'loss': loss,
+            'metrics': metrics,
             'epochs': epochs,
             'multiprocessing': False
         }
