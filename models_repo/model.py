@@ -90,11 +90,8 @@ class ModelTrainer:
         }
 
         history = self.train_model(config)
+        return history
 
-        plt.plot(history.history['loss'], label=f"{config['loss']}")
-        plt.plot(history.history['val_loss'], label=f"val_{config['loss']}")
-        plt.legend()
-        plt.show()
 
 
 class PredMode(Enum):
