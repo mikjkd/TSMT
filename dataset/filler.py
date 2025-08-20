@@ -14,6 +14,7 @@ def progress_bar(current, total, bar_length=40):
 class FillnaTypes(Enum):
     SIMPLE = 'simple'
     MEAN = 'mean'
+    NONE = 'none'
 
     @staticmethod
     def from_string(s):
@@ -22,7 +23,7 @@ class FillnaTypes(Enum):
         elif s == 'MEAN':
             return FillnaTypes.MEAN
         else:
-            return FillnaTypes.SIMPLE
+            return FillnaTypes.NONE
 
 
 def fill_na_mean(df, target_columns: List):

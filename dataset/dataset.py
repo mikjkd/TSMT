@@ -53,7 +53,7 @@ class Configuration:
 
 
 class Dataset:
-    def __init__(self, columns, data_path, encoders, scaler_path):
+    def __init__(self, columns, data_path = None, encoders = None, scaler_path= None):
         self.columns = columns
         self.seq_len_x = 0
         self.seq_len_y = 0
@@ -64,6 +64,8 @@ class Dataset:
         self.y_columns = None
 
     def generate_frame(self, start_date=None, end_date=None) -> pd.DataFrame:
+        if self.data_path is None:
+            raise Exception('No data path')
         df = pd.read_csv(self.data_path)
         df.columns = self.columns
 
