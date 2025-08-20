@@ -5,10 +5,12 @@ from scipy.stats import pearsonr
 
 
 def scale_preds(preds, scaler_path):
+    # Implementazione della predizione
     scaler = joblib.load(scaler_path)
     scaled_preds = []
     for p in preds:
         scaled_preds.append(scaler.inverse_transform(p.reshape(-1, 1)))
+    # scaled_preds = [int(max(np.ceil(sp[0][0]), 0)) for sp in scaled_preds]
     return np.array(scaled_preds).reshape(len(scaled_preds))
 
 
@@ -34,17 +36,33 @@ def plot_example_pred(generator, regressor):
 
 
 """
-The paper https://doi.org/10.1016/j.apradiso.2020.109239
-uses the Pearson coefficient to calculate the correlation between the measured signal and the trained one.
-eval_pearsonsr provides an implementation.
+    Il paper https://doi.org/10.1016/j.apradiso.2020.109239
+    utilizza il coefficiente di Pearson per calcolare la correlazione tra il segnale misurato e l'allenato
+
+    eval_pearsonsr presenta un'implementazione.
 """
 
 
-def eval_pearsonsr(y_preds, y_true, scaler_path='scalers/Target_scaler.save'):
+def remove_outliers(scaled_y_true, scaled_y_preds, outliers_threshold):
+    t = scaled_y_true.copy()
+    p = scaled_y_preds.copy()
+    out_thr = outliers_threshold
+    wtr_y = np.where(t >= out_thr)[0]
+    t = np.delete(t, wtr_y)
+    p = np.delete(p, wtr_y)
+    if len(p) == 0 or len(t) == 0:
+        raise Exception('Threshold too low')
+    return t, p
+
+
+def eval_pearsonsr(y_preds, y_true, remove_outliers_p=False, outliers_threshold=120000,
+                   scaler_path='scalers/Rn_olb_scaler.save'):
     y_true = y_true.reshape(-1)
     y_preds = y_preds.reshape(-1)
     scaled_y_true = scale_preds(y_true, scaler_path=scaler_path)
     scaled_y_preds = scale_preds(y_preds, scaler_path=scaler_path)
+    if remove_outliers_p:
+        scaled_y_true, scaled_y_preds = remove_outliers(scaled_y_true, scaled_y_preds, outliers_threshold)
 
     corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
     print('Pearsons correlation: %.3f' % corr)
@@ -52,16 +70,25 @@ def eval_pearsonsr(y_preds, y_true, scaler_path='scalers/Target_scaler.save'):
     v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
     v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
     plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
+    plt.plot(np.linspace(0, 0), np.linspace(0, 0))
+    plt.grid()
     plt.scatter(scaled_y_preds, scaled_y_true)
+    plt.text(
+        0.8 * v_max, 0.5 * v_max,  # Position in the plot
+        r"$\rho = {:.2f}$".format(corr),  # Displayed text
+        fontsize=16,
+        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3')  # Popup style
+    )
     plt.show()
     return corr
 
 
-def eval(y_test, y_preds, scaler_path=None):
+def eval(y_test, y_preds, scaler_path=None, remove_outliers=False):
     if scaler_path is None:
-        scaler_path = 'scalers/Target_scaler.save'
+        scaler_path = 'scalers/Rn_olb_scaler.save'
+    # non c'è bisogno di usare la classe corretta, basta usare la classe base
 
-    pearsonval = eval_pearsonsr(y_preds, y_test, scaler_path=scaler_path)
+    pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers_p=remove_outliers, scaler_path=scaler_path)
     y_true = y_test.reshape(y_test.shape[0], )
 
     scaled_preds = scale_preds(y_preds, scaler_path)
