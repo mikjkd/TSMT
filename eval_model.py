@@ -32,7 +32,6 @@ def plot_example_pred(generator, regressor):
         plt.plot(len(val_true[0][0, :, 4]), lstm_val_pred[0], '-o', label="lstm_pred")
         plt.legend()
         plt.savefig(f'images/ex_{i}.png')
-        plt.show()
 
 
 """
@@ -66,21 +65,7 @@ def eval_pearsonsr(y_preds, y_true, remove_outliers_p=False, outliers_threshold=
 
     corr, _ = pearsonr(scaled_y_true, scaled_y_preds)
     print('Pearsons correlation: %.3f' % corr)
-
-    v_min = np.min([np.min(scaled_y_true), np.min(scaled_y_preds)])
-    v_max = np.max([np.max(scaled_y_true), np.max(scaled_y_preds)])
-    plt.plot(np.linspace(v_min, v_max), np.linspace(v_min, v_max))
-    plt.plot(np.linspace(0, 0), np.linspace(0, 0))
-    plt.grid()
-    plt.scatter(scaled_y_preds, scaled_y_true)
-    plt.text(
-        0.8 * v_max, 0.5 * v_max,  # Position in the plot
-        r"$\rho = {:.2f}$".format(corr),  # Displayed text
-        fontsize=16,
-        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=0.3')  # Popup style
-    )
-    plt.show()
-    return corr
+    return scaled_y_true, scaled_y_preds, corr
 
 
 def eval(y_test, y_preds, scaler_path=None, remove_outliers=False):
@@ -88,16 +73,17 @@ def eval(y_test, y_preds, scaler_path=None, remove_outliers=False):
         scaler_path = 'scalers/Rn_olb_scaler.save'
     # non c'è bisogno di usare la classe corretta, basta usare la classe base
 
-    pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers_p=remove_outliers, scaler_path=scaler_path)
-    y_true = y_test.reshape(y_test.shape[0], )
+    _, __, ___, ____, pearsonval = eval_pearsonsr(y_preds, y_test, remove_outliers_p=remove_outliers,
+                                                  scaler_path=scaler_path)
+    # y_true = y_test.reshape(y_test.shape[0], )
 
-    scaled_preds = scale_preds(y_preds, scaler_path)
-    scaled_true = scale_preds(y_true, scaler_path)
-    plt.figure(figsize=(20, 6))
-    plt.plot(scaled_true, label='True')
-    plt.plot(scaled_preds,
-             label='preds')
-    plt.legend()
-    plt.show()
+    # scaled_preds = scale_preds(y_preds, scaler_path)
+    # scaled_true = scale_preds(y_true, scaler_path)
+    # plt.figure(figsize=(20, 6))
+    # plt.plot(scaled_true, label='True')
+    # plt.plot(scaled_preds,
+    #          label='preds')
+    # plt.legend()
+    # plt.show()
 
     return pearsonval
