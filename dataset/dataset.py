@@ -53,7 +53,7 @@ class Configuration:
 
 
 class Dataset:
-    def __init__(self, columns, data_path = None, encoders = None, scaler_path= None):
+    def __init__(self, columns, data_path=None, encoders=None, scaler_path=None):
         self.columns = columns
         self.seq_len_x = 0
         self.seq_len_y = 0
@@ -97,13 +97,17 @@ class Dataset:
             new_df[f'na_{c}'] = na_cols[:, idx]
         return new_df, na_cols
 
-    # split a univariate sequence into samples
-    # returns indices too
+    """ Split a sequence into samples
+        if overlapped is false it generates non-overlapped X windows (leaves n_steps samples)
+        returns indices too
+    """
+
     @staticmethod
-    def split_sequence(sequence, n_steps, n_steps_y=1, distributed=False):
+    def split_sequence(sequence, n_steps, n_steps_y=1, overlapping=True, distributed=False):
         X, y = list(), list()
         ind_X, ind_Y = list(), list()
-        for i in range(len(sequence)):
+        step = 1 if overlapping else n_steps
+        for i in range(0, len(sequence), step):
             # find the end of this pattern
             end_ix = i + n_steps
             # check if we are beyond the sequence
@@ -144,6 +148,7 @@ class Dataset:
                       distributed,
                       cast_values=True,
                       remove_not_known=False,
+                      patch_overlapping=True,
                       xy_type: XYType = XYType.TRAIN,
                       fill_na_type: FillnaTypes = FillnaTypes.SIMPLE):
         tcts = columns_to_scale.copy()
@@ -178,14 +183,14 @@ class Dataset:
 
         if cast_values:
             X, _, ind_X, _ = self.split_sequence(frame_drop.values.astype('float64'), self.seq_len_x,
-                                                 self.seq_len_y)
+                                                 self.seq_len_y, overlapping=patch_overlapping)
             _, Y, _, ind_Y = self.split_sequence(frame_drop.values.astype('float64'), self.seq_len_x, self.seq_len_y,
-                                                 distributed=distributed)
+                                                 distributed=distributed, overlapping=patch_overlapping)
         else:
             X, _, ind_X, _ = self.split_sequence(frame_drop.values, self.seq_len_x,
-                                                 self.seq_len_y)
+                                                 self.seq_len_y, overlapping=patch_overlapping)
             _, Y, _, ind_Y = self.split_sequence(frame_drop.values, self.seq_len_x, self.seq_len_y,
-                                                 distributed=distributed)
+                                                 distributed=distributed, overlapping=patch_overlapping)
 
         ctfs = [list(frame_drop.columns).index(ctf) for ctf in tct]
         if self.seq_len_y > 0:
@@ -215,7 +220,7 @@ class Dataset:
                     remove_not_known=False,
                     fill_na_type: FillnaTypes = FillnaTypes.SIMPLE,
                     xy_type: XYType = XYType.TRAIN,
-                    train_test_split=0.8, padding_size=0, distributed=False):
+                    train_test_split=0.8, padding_size=0, distributed=False, patch_overlapping=True):
         self.seq_len_x = seq_len_x
         self.seq_len_y = seq_len_y
         if xy_type == XYType.TRAIN or xy_type == XYType.TEST:
@@ -225,7 +230,7 @@ class Dataset:
                                       remove_not_known=remove_not_known,
                                       fill_na_type=fill_na_type,
                                       xy_type=xy_type,
-                                      distributed=distributed)
+                                      distributed=distributed, patch_overlapping=patch_overlapping)
             return X, y
         elif xy_type == XYType.TRAINTEST:
             train_df = df[:int(len(df) * train_test_split)]
@@ -237,7 +242,7 @@ class Dataset:
                                                   remove_not_known=remove_not_known,
                                                   fill_na_type=fill_na_type,
                                                   xy_type=XYType.TRAIN,
-                                                  distributed=distributed)
+                                                  distributed=distributed, patch_overlapping=patch_overlapping)
             # The padding_size in TRAINTEST is used for a technique called Alignment Buffer.
             # This buffer, consisting of the last 20 rows of the training set positioned before the test set,
             # allows for a smoother transition of the window, avoiding a phenomenon called the Boundary Effect.
@@ -258,7 +263,7 @@ class Dataset:
                                                 remove_not_known=remove_not_known,
                                                 xy_type=XYType.TEST,
                                                 fill_na_type=fill_na_type,
-                                                distributed=distributed)
+                                                distributed=distributed, patch_overlapping=patch_overlapping)
             return (X_train, y_train), (X_test, y_test)
         else:
             raise Exception('XY Type not defined')
