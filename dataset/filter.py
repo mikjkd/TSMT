@@ -59,6 +59,7 @@ def multi_filter(df: pd.DataFrame, filters) -> pd.DataFrame:
             ctf = [i['column']]
             order = i['parameters']['order']
             cutoff = i['parameters']['cutoff']
+            inplace = False if 'inplace' not in i else i['inplace']
             frame = filter(frame, colums_to_filter=ctf, filter_type=k, order=order, cutoff=cutoff,
-                           inplace=False)
+                           inplace=inplace)
     return frame
